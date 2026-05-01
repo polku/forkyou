@@ -1,0 +1,14 @@
+{
+  "name": "chess-bot",
+  "version": "0.1.0",
+  "description": "Lichess chess bot — stream loop, decision policies, and evaluation adapters",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/bot/main.js",
+    "test": "node --test",
+    "test:conformance": "node --experimental-transform-types tests/conformance/v1/contract.test.ts"
+  }
+}
