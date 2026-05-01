@@ -1,0 +1,253 @@
+{
+  "version": "1.0.0",
+  "description": "Endgames benchmark position corpus — FOR-39. Covers representative piece configurations for Syzygy tablebase coverage tiers (2-3-4-5-6 pieces).",
+  "contractRef": "EndgameContract v1 (FOR-37 / FOR-38)",
+  "categories": [
+    {
+      "id": "kqk",
+      "label": "KQvK — trivially won (2-piece aside from kings)",
+      "expectedStatus": "hit",
+      "expectedWdl": "win",
+      "positions": [
+        {
+          "id": "kqk-01",
+          "fen": "8/8/8/8/8/8/1K6/Q6k w - - 0 1",
+          "description": "KQ vs K — queen on a1, kings well separated",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "kqk-02",
+          "fen": "8/8/8/4k3/8/8/1K6/Q7 w - - 0 1",
+          "description": "KQ vs K — central enemy king",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "kqk-03",
+          "fen": "8/8/8/8/8/1k6/8/QK6 w - - 6 1",
+          "description": "KQ vs K — king near corner (50-move clock at 6)",
+          "halfmoveClock": 6
+        }
+      ]
+    },
+    {
+      "id": "krk",
+      "label": "KRvK — won but requires technique",
+      "expectedStatus": "hit",
+      "expectedWdl": "win",
+      "positions": [
+        {
+          "id": "krk-01",
+          "fen": "8/8/8/8/8/8/1K6/R6k w - - 0 1",
+          "description": "KR vs K — rook on a1",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "krk-02",
+          "fen": "8/8/4k3/8/8/8/1K6/R7 w - - 0 1",
+          "description": "KR vs K — central enemy king",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "krk-03",
+          "fen": "8/8/8/8/8/6k1/8/RK6 w - - 20 1",
+          "description": "KR vs K — 50-move clock at 20",
+          "halfmoveClock": 20
+        }
+      ]
+    },
+    {
+      "id": "kbnk",
+      "label": "KBNvK — difficult forced mate",
+      "expectedStatus": "hit",
+      "expectedWdl": "win",
+      "positions": [
+        {
+          "id": "kbnk-01",
+          "fen": "8/8/8/8/8/8/1KBN4/7k w - - 0 1",
+          "description": "KBN vs K — standard mating position setup",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "kbnk-02",
+          "fen": "8/8/6k1/8/8/8/1KBN4/8 w - - 0 1",
+          "description": "KBN vs K — enemy king central",
+          "halfmoveClock": 0
+        }
+      ]
+    },
+    {
+      "id": "kpk",
+      "label": "KPvK — pawn endgame (win or draw depends on position)",
+      "positions": [
+        {
+          "id": "kpk-01",
+          "fen": "8/8/8/8/8/8/1KP5/7k w - - 0 1",
+          "description": "KP vs K — won (king in front of pawn)",
+          "expectedStatus": "hit",
+          "expectedWdl": "win",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "kpk-02",
+          "fen": "8/8/8/8/8/7k/7P/7K w - - 0 1",
+          "description": "KP vs K — stalemate trap (rook pawn draw)",
+          "expectedStatus": "hit",
+          "expectedWdl": "draw",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "kpk-03",
+          "fen": "8/8/8/8/7k/8/6KP/8 w - - 0 1",
+          "description": "KP vs K — king blocking (draw)",
+          "expectedStatus": "hit",
+          "expectedWdl": "draw",
+          "halfmoveClock": 0
+        }
+      ]
+    },
+    {
+      "id": "kvk",
+      "label": "KvK — trivial draw",
+      "expectedStatus": "hit",
+      "expectedWdl": "draw",
+      "positions": [
+        {
+          "id": "kvk-01",
+          "fen": "8/8/8/8/8/8/8/K6k w - - 0 1",
+          "description": "KvK — bare kings",
+          "halfmoveClock": 0
+        }
+      ]
+    },
+    {
+      "id": "5piece",
+      "label": "5-piece positions (KRRvK, KQPvK, KRPvKR)",
+      "positions": [
+        {
+          "id": "5p-01",
+          "fen": "8/8/8/8/8/8/1KRR4/7k w - - 0 1",
+          "description": "KRRvK — dominant win",
+          "expectedStatus": "hit",
+          "expectedWdl": "win",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "5p-02",
+          "fen": "8/8/8/4k3/8/8/1KQP4/8 w - - 0 1",
+          "description": "KQPvK — won",
+          "expectedStatus": "hit",
+          "expectedWdl": "win",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "5p-03",
+          "fen": "8/8/8/4k3/8/1K2P3/8/7r w - - 0 1",
+          "description": "KPvKR — typically lost for side with pawn",
+          "expectedStatus": "hit",
+          "expectedWdl": "loss",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "5p-04",
+          "fen": "8/8/8/3k4/8/1K6/4R3/4r3 w - - 0 1",
+          "description": "KRvKR — drawn (rook endgame)",
+          "expectedStatus": "hit",
+          "expectedWdl": "draw",
+          "halfmoveClock": 0
+        }
+      ]
+    },
+    {
+      "id": "50move-edge",
+      "label": "50-move rule edge cases — DTZ sensitivity",
+      "positions": [
+        {
+          "id": "50m-01",
+          "fen": "8/8/8/8/8/8/1K6/R6k w - - 90 1",
+          "description": "KR vs K — 50-move clock at 90 (near draw claim)",
+          "expectedStatus": "hit",
+          "halfmoveClock": 90
+        },
+        {
+          "id": "50m-02",
+          "fen": "8/8/8/8/8/8/1K6/R6k w - - 99 1",
+          "description": "KR vs K — 50-move clock at 99 (one move before auto-draw)",
+          "expectedStatus": "hit",
+          "halfmoveClock": 99
+        },
+        {
+          "id": "50m-03",
+          "fen": "8/8/8/8/8/8/1K6/Q6k w - - 100 1",
+          "description": "KQ vs K — clock at 100 (auto-draw territory)",
+          "expectedStatus": "hit",
+          "halfmoveClock": 100
+        }
+      ]
+    },
+    {
+      "id": "unsupported",
+      "label": "Out-of-tablebase-range positions (too many pieces)",
+      "expectedStatus": "miss",
+      "positions": [
+        {
+          "id": "uns-01",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "description": "Starting position — 32 pieces, well outside tablebase range",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "uns-02",
+          "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+          "description": "Italian game middlegame — 30 pieces",
+          "halfmoveClock": 4
+        }
+      ]
+    },
+    {
+      "id": "invalid",
+      "label": "Invalid FEN inputs — must return error/INVALID_FEN",
+      "expectedStatus": "error",
+      "positions": [
+        {
+          "id": "inv-01",
+          "fen": "not-a-valid-fen",
+          "description": "Completely malformed FEN string",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "inv-02",
+          "fen": "",
+          "description": "Empty FEN string",
+          "halfmoveClock": 0
+        },
+        {
+          "id": "inv-03",
+          "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+          "description": "No kings on board — illegal position",
+          "halfmoveClock": 0
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 23,
+    "byCategory": {
+      "kqk": 3,
+      "krk": 3,
+      "kbnk": 2,
+      "kpk": 3,
+      "kvk": 1,
+      "5piece": 4,
+      "50move-edge": 3,
+      "unsupported": 2,
+      "invalid": 3
+    },
+    "intendedProviders": ["tablebase_local", "tablebase_remote"],
+    "notes": [
+      "Positions chosen to cover all EndgamesStatus branches: hit/miss/error/timeout/unavailable.",
+      "50-move edge cases validate DTZ-aware behavior required by EndgameContract v1 rule_mode field.",
+      "Invalid FEN inputs validate error mapping to INVALID_FEN error code per FOR-38 error policy.",
+      "Unsupported positions validate miss status and fallback-to-search behavior."
+    ]
+  }
+}

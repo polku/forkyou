@@ -1,0 +1,49 @@
+{
+  "_comment": "FOR-39 endgames rollout gate thresholds. Derived from stub baseline + Syzygy operational literature. Ratify before production enablement.",
+  "version": "1.0.0",
+  "contractRef": "EndgameContract v1 (FOR-37 / FOR-38)",
+
+  "local_tablebase": {
+    "_comment": "Thresholds for tablebase_local — in-process or same-host disk I/O. Syzygy 6-piece typical: <5ms p50, <30ms p99.",
+    "maxP50Ms": 5,
+    "maxP95Ms": 20,
+    "maxP99Ms": 50,
+    "maxFailureRate": 0.01,
+    "minCorrectStatusRate": 0.99
+  },
+
+  "remote_tablebase": {
+    "_comment": "Thresholds for tablebase_remote — HTTP call to external provider (e.g. Lichess tablebase API). Tighter SLA expected at move-time.",
+    "maxP50Ms": 80,
+    "maxP95Ms": 300,
+    "maxP99Ms": 600,
+    "maxFailureRate": 0.02,
+    "minCorrectStatusRate": 0.98
+  },
+
+  "ci_gate": {
+    "_comment": "Gate used in CI on every candidate commit (STC equivalent). Lenient enough for CI hardware variance.",
+    "maxP50Ms": 10,
+    "maxP95Ms": 40,
+    "maxP99Ms": 100,
+    "maxFailureRate": 0.02,
+    "minCorrectStatusRate": 0.98
+  },
+
+  "release_gate": {
+    "_comment": "Gate used on release branch merge (LTC equivalent). Tighter — must hold on representative production hardware.",
+    "maxP50Ms": 5,
+    "maxP95Ms": 25,
+    "maxP99Ms": 60,
+    "maxFailureRate": 0.005,
+    "minCorrectStatusRate": 0.995
+  },
+
+  "quarantine_trigger": {
+    "_comment": "If observed metrics exceed these over a 5-minute window, the provider is quarantined and fallback search is used.",
+    "maxFailureRateWindow": 0.05,
+    "maxP99MsWindow": 200,
+    "windowSeconds": 300,
+    "recoveryMinutes": 10
+  }
+}
