@@ -13,8 +13,8 @@ jobs:
     name: STC ci_gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
       - name: Run ci_gate benchmark
@@ -25,7 +25,7 @@ jobs:
             --timeoutMs 200 \
             --output benchmarks/endgames/results-ci-gate.json
       - name: Upload ci_gate artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ci-gate-results
           path: benchmarks/endgames/results-ci-gate.json
@@ -35,8 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
       - name: Run release_gate benchmark
@@ -47,7 +47,7 @@ jobs:
             --timeoutMs 200 \
             --output benchmarks/endgames/results-release-gate.json
       - name: Upload release_gate artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-gate-results
           path: benchmarks/endgames/results-release-gate.json
@@ -56,8 +56,8 @@ jobs:
     name: Deterministic replay proof
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
       - name: Run replay benchmark #1
@@ -86,7 +86,7 @@ jobs:
             benchmarks/endgames/replay-proof/run2.log \
             benchmarks/endgames/replay-proof/verification.json
       - name: Upload replay proof artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deterministic-replay-proof
           path: benchmarks/endgames/replay-proof/
