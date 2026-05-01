@@ -85,3 +85,10 @@ Artifacts:
 Note on log access:
 - Public API confirms step/job success and artifact publication.
 - Direct raw job-log download endpoint is admin-scoped (`403 Must have admin rights to Repository`) from this environment.
+
+## Revalidation After Evidence Commit
+- Workflow run: `25237095252`
+- Run URL: `https://github.com/polku/forkyou/actions/runs/25237095252`
+- Head SHA: `d7944d0`
+- Branch: `master`
+- Conclusion: `success`
