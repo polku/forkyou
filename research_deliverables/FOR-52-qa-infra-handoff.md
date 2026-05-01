@@ -58,3 +58,30 @@ Evidence files:
 
 Smallest unblock recommendation:
 - Merge this workflow + verifier as-is, then capture first green Action run artifact links and job IDs in the FOR-52 issue comment for closure.
+
+## Remote CI Verification (Post-push)
+- Workflow run: `25237065430`
+- Run URL: `https://github.com/polku/forkyou/actions/runs/25237065430`
+- Head SHA: `89bb8ba`
+- Branch: `master`
+- Conclusion: `success`
+
+Jobs:
+- `74005415875` — STC ci_gate — success
+  - URL: `https://github.com/polku/forkyou/actions/runs/25237065430/job/74005415875`
+  - Step evidence: `Run ci_gate benchmark` succeeded.
+- `74005415876` — LTC release_gate — success
+  - URL: `https://github.com/polku/forkyou/actions/runs/25237065430/job/74005415876`
+  - Step evidence: `Run release_gate benchmark` succeeded.
+- `74005415877` — Deterministic replay proof — success
+  - URL: `https://github.com/polku/forkyou/actions/runs/25237065430/job/74005415877`
+  - Step evidence: both replay runs + `Verify replay outcomes` succeeded.
+
+Artifacts:
+- `ci-gate-results` (id `6758402200`): `https://api.github.com/repos/polku/forkyou/actions/artifacts/6758402200/zip`
+- `release-gate-results` (id `6758402473`): `https://api.github.com/repos/polku/forkyou/actions/artifacts/6758402473/zip`
+- `deterministic-replay-proof` (id `6758402751`): `https://api.github.com/repos/polku/forkyou/actions/artifacts/6758402751/zip`
+
+Note on log access:
+- Public API confirms step/job success and artifact publication.
+- Direct raw job-log download endpoint is admin-scoped (`403 Must have admin rights to Repository`) from this environment.
