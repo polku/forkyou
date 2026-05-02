@@ -1,6 +1,6 @@
 # ForkYou Chess Bot
 
-Lichess chess bot prototype focused on protocol correctness and reliable execution.
+Chess bot created entirely throug [Paperclip](https://paperclip.ing/) as control plane for a bunch of Codex and Claude Code agents.
 
 ## What This Repository Contains
 - Bot runtime loop and Lichess transport in `src/bot/`
