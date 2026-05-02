@@ -12,6 +12,7 @@ const {
   rankBotsByRating,
   computeChallengeCooldownMs,
   isOwnChallengeEvent,
+  applyOpponentCooldown,
   selectClosestBot,
 } = require("../../src/bot/main");
 
@@ -114,6 +115,11 @@ test("maybeStartOutboundChallenge creates challenge when eligible", async () => 
     hasActiveGame: false,
     targetGamesReached: false,
     pendingOutboundChallenge: false,
+    pendingOutboundChallengeId: null,
+    pendingOutboundChallengeExpiresAt: 0,
+    pendingOutboundChallengeOpponent: null,
+    outboundChallengeTtlMs: 45000,
+    noGameOpponentCooldownMs: 180000,
     opponentCooldownUntil: new Map(),
     me: null,
   };
@@ -176,6 +182,11 @@ test("maybeStartOutboundChallenge retries with next opponent after rate-limit fa
     hasActiveGame: false,
     targetGamesReached: false,
     pendingOutboundChallenge: false,
+    pendingOutboundChallengeId: null,
+    pendingOutboundChallengeExpiresAt: 0,
+    pendingOutboundChallengeOpponent: null,
+    outboundChallengeTtlMs: 45000,
+    noGameOpponentCooldownMs: 180000,
     opponentCooldownUntil: new Map(),
     me: null,
   };
@@ -217,7 +228,9 @@ test("maybeStartOutboundChallenge does not create another challenge while pendin
     pendingOutboundChallenge: false,
     pendingOutboundChallengeId: "already-open",
     pendingOutboundChallengeExpiresAt: Date.now() + 60000,
+    pendingOutboundChallengeOpponent: "botA",
     outboundChallengeTtlMs: 45000,
+    noGameOpponentCooldownMs: 180000,
     opponentCooldownUntil: new Map(),
     me: { username: "mybot", perfs: { blitz: { rating: 1500 } } },
   };
@@ -230,4 +243,51 @@ test("maybeStartOutboundChallenge does not create another challenge while pendin
   });
 
   assert.equal(createCalls, 0);
+});
+
+test("applyOpponentCooldown sets max cooldown window", () => {
+  const state = { opponentCooldownUntil: new Map() };
+  applyOpponentCooldown(state, "botA", 1000);
+  const first = state.opponentCooldownUntil.get("botA");
+  applyOpponentCooldown(state, "botA", 500);
+  assert.equal(state.opponentCooldownUntil.get("botA"), first);
+});
+
+test("maybeStartOutboundChallenge cools down opponent when pending challenge expires", async () => {
+  let createCalls = 0;
+  const client = {
+    async getAccount() {
+      return { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+    },
+    async getOnlineBots() {
+      return [{ username: "botB", perfs: { blitz: { rating: 1510 } } }];
+    },
+    async createChallenge() {
+      createCalls += 1;
+      return { challenge: { id: "newOne" } };
+    },
+  };
+  const logger = { info: () => {}, warn: () => {} };
+  const state = {
+    hasActiveGame: false,
+    targetGamesReached: false,
+    pendingOutboundChallenge: false,
+    pendingOutboundChallengeId: "expiredOne",
+    pendingOutboundChallengeExpiresAt: Date.now() - 1000,
+    pendingOutboundChallengeOpponent: "botA",
+    outboundChallengeTtlMs: 45000,
+    noGameOpponentCooldownMs: 180000,
+    opponentCooldownUntil: new Map(),
+    me: { username: "mybot", perfs: { blitz: { rating: 1500 } } },
+  };
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  assert.ok(state.opponentCooldownUntil.get("botA") > Date.now());
+  assert.equal(createCalls, 1);
 });

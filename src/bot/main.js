@@ -119,6 +119,15 @@ function isOwnChallengeEvent(challenge, me) {
   return challengerName === myUsername;
 }
 
+function applyOpponentCooldown(state, opponent, cooldownMs) {
+  if (!opponent || !Number.isFinite(cooldownMs) || cooldownMs <= 0) {
+    return;
+  }
+  const until = Date.now() + cooldownMs;
+  const previous = state.opponentCooldownUntil.get(opponent) || 0;
+  state.opponentCooldownUntil.set(opponent, Math.max(previous, until));
+}
+
 async function maybeStartOutboundChallenge({ client, logger, state, challengeOptions }) {
   if (state.hasActiveGame || state.targetGamesReached || state.pendingOutboundChallenge) {
     return;
@@ -128,8 +137,10 @@ async function maybeStartOutboundChallenge({ client, logger, state, challengeOpt
   }
   if (state.pendingOutboundChallengeId && Date.now() >= state.pendingOutboundChallengeExpiresAt) {
     logger.info(`pending outbound challenge ${state.pendingOutboundChallengeId} expired; trying another opponent`);
+    applyOpponentCooldown(state, state.pendingOutboundChallengeOpponent, state.noGameOpponentCooldownMs);
     state.pendingOutboundChallengeId = null;
     state.pendingOutboundChallengeExpiresAt = 0;
+    state.pendingOutboundChallengeOpponent = null;
   }
 
   state.pendingOutboundChallenge = true;
@@ -161,6 +172,7 @@ async function maybeStartOutboundChallenge({ client, logger, state, challengeOpt
         const challengeId = challengeResult.challenge?.id || challengeResult.id || "unknown";
         state.pendingOutboundChallengeId = challengeId;
         state.pendingOutboundChallengeExpiresAt = Date.now() + state.outboundChallengeTtlMs;
+        state.pendingOutboundChallengeOpponent = opponent;
         logger.info(`Challenge created: ${challengeId} -> ${opponent}`);
         return;
       } catch (err) {
@@ -205,7 +217,9 @@ async function run() {
     pendingOutboundChallenge: false,
     pendingOutboundChallengeId: null,
     pendingOutboundChallengeExpiresAt: 0,
+    pendingOutboundChallengeOpponent: null,
     outboundChallengeTtlMs: Number(process.env.ACTIVE_CHALLENGE_PENDING_TTL_MS || "45000"),
+    noGameOpponentCooldownMs: Number(process.env.ACTIVE_CHALLENGE_NO_GAME_COOLDOWN_MS || "180000"),
     opponentCooldownUntil: new Map(),
     me: null,
   };
@@ -245,8 +259,10 @@ async function run() {
         const challengeId = event.challenge?.id || event.challenge?.challenge?.id;
         if (challengeId && challengeId === state.pendingOutboundChallengeId) {
           logger.info(`outbound challenge ${challengeId} ended without game; unlocking outbound attempts`);
+          applyOpponentCooldown(state, state.pendingOutboundChallengeOpponent, state.noGameOpponentCooldownMs);
           state.pendingOutboundChallengeId = null;
           state.pendingOutboundChallengeExpiresAt = 0;
+          state.pendingOutboundChallengeOpponent = null;
         }
         continue;
       }
@@ -290,6 +306,7 @@ async function run() {
       logger.info(`starting game loop for ${gameId} as ${botColor}`);
       state.pendingOutboundChallengeId = null;
       state.pendingOutboundChallengeExpiresAt = 0;
+      state.pendingOutboundChallengeOpponent = null;
       state.hasActiveGame = true;
       state.targetGamesStarted += 1;
       if (state.targetGamesStarted >= activeChallengeTargetGames && !state.targetGamesReached) {
@@ -332,6 +349,7 @@ module.exports = {
   rankBotsByRating,
   computeChallengeCooldownMs,
   isOwnChallengeEvent,
+  applyOpponentCooldown,
   maybeStartOutboundChallenge,
   run,
 };
