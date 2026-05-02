@@ -284,3 +284,57 @@ test("runSingleGame passes non-zero think budget to decision policy when clock a
 
   assert.ok(capturedBudget > 0, "expected positive think budget for usable clock");
 });
+
+test("runSingleGame does not warn when latency equals the computed think budget", async () => {
+  const events = [
+    { type: "gameState", moves: "", status: "started", wtime: 60000, btime: 60000 },
+    { type: "gameState", moves: "e2e4", status: "resign", winner: "white" },
+  ];
+  const warnings = [];
+
+  const client = {
+    async *streamGame() { for (const e of events) yield e; },
+    async makeMove() { return true; },
+  };
+
+  const decisionPolicy = {
+    async decide({ legalMoves, timeBudgetMs }) {
+      return { move: legalMoves[0], latencyMs: timeBudgetMs, source: "uci" };
+    },
+  };
+
+  const logger = { info: () => {}, warn: (msg) => warnings.push(msg) };
+  await runSingleGame({ client, decisionPolicy, logger, gameId: "g7", botColor: "white", moveLatencyBudgetMs: 200 });
+
+  assert.ok(
+    !warnings.some((w) => w.includes("overran budget")),
+    "no overrun warning expected when latency equals the think budget"
+  );
+});
+
+test("runSingleGame warns when latency significantly overruns the computed budget", async () => {
+  const events = [
+    { type: "gameState", moves: "", status: "started", wtime: 60000, btime: 60000 },
+    { type: "gameState", moves: "e2e4", status: "resign", winner: "white" },
+  ];
+  const warnings = [];
+
+  const client = {
+    async *streamGame() { for (const e of events) yield e; },
+    async makeMove() { return true; },
+  };
+
+  const decisionPolicy = {
+    async decide({ legalMoves, timeBudgetMs }) {
+      return { move: legalMoves[0], latencyMs: timeBudgetMs + 500, source: "uci" };
+    },
+  };
+
+  const logger = { info: () => {}, warn: (msg) => warnings.push(msg) };
+  await runSingleGame({ client, decisionPolicy, logger, gameId: "g8", botColor: "white", moveLatencyBudgetMs: 200 });
+
+  assert.ok(
+    warnings.some((w) => w.includes("overran budget")),
+    "overrun warning expected when latency exceeds budget by 500ms (> 200ms tolerance)"
+  );
+});

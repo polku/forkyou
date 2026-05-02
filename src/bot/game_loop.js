@@ -91,13 +91,15 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
       continue;
     }
 
+    const timeBudgetMs = computeMoveBudget({ state, botColor, moves: state.moves });
+
     const decision = await decisionPolicy.decide({
       gameId,
       botColor,
       legalMoves,
       fen,
       state,
-      timeBudgetMs: computeMoveBudget({ state, botColor, moves: state.moves }),
+      timeBudgetMs,
     });
 
     if (!legalMoves.includes(decision.move)) {
@@ -105,8 +107,9 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
       continue;
     }
 
-    if (decision.latencyMs > moveLatencyBudgetMs) {
-      logger.warn(`game ${gameId}: move decision exceeded budget ${moveLatencyBudgetMs}ms (${decision.latencyMs}ms)`);
+    const overrunMs = decision.latencyMs - timeBudgetMs;
+    if (overrunMs > moveLatencyBudgetMs) {
+      logger.warn(`game ${gameId}: move decision overran budget by ${overrunMs}ms (budget=${timeBudgetMs}ms, actual=${decision.latencyMs}ms)`);
     }
 
     try {

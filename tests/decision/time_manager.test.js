@@ -48,3 +48,25 @@ test("computeMoveBudget handles sudden death without increment", () => {
 
   assert.equal(budget, 1192);
 });
+
+test("computeMoveBudget default fractions keep opening move under 1s for bullet (60s game)", () => {
+  const budget = computeMoveBudget({
+    botColor: "white",
+    moves: "",
+    state: { wtime: 60000, winc: 0, btime: 60000, binc: 0 },
+  });
+
+  assert.ok(budget < 1000, `opening move should be under 1000ms for 60s bullet, got ${budget}ms`);
+  assert.ok(budget >= 50, `opening move should be at least minThinkMs=50ms, got ${budget}ms`);
+});
+
+test("computeMoveBudget default fractions respect maxThinkMs cap for blitz (300s game)", () => {
+  const budget = computeMoveBudget({
+    botColor: "white",
+    moves: "",
+    state: { wtime: 300000, winc: 0, btime: 300000, binc: 0 },
+  });
+
+  assert.ok(budget <= 2000, `opening move should not exceed maxThinkMs=2000ms, got ${budget}ms`);
+  assert.ok(budget >= 50, `opening move should be at least minThinkMs=50ms, got ${budget}ms`);
+});
