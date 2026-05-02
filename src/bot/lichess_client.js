@@ -73,6 +73,24 @@ class LichessClient {
 
     return true;
   }
+
+  async declineChallenge(challengeId, reason = "later") {
+    const res = await this.fetchImpl(`${this.baseUrl}/api/challenge/${challengeId}/decline`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: `reason=${encodeURIComponent(reason)}`,
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`challenge decline failed (${res.status}): ${body}`);
+    }
+
+    return true;
+  }
 }
 
 async function *parseNdjson(response) {

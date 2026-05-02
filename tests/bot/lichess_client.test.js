@@ -63,3 +63,21 @@ test("LichessClient sends auth header for event stream", async () => {
   assert.equal(calls[0].options.headers.Authorization, "Bearer tkn");
   assert.equal(rows[0].type, "gameStart");
 });
+
+test("LichessClient declines challenge with encoded reason", async () => {
+  const calls = [];
+  const client = new LichessClient({
+    token: "tkn",
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return responseOk("");
+    },
+  });
+
+  await client.declineChallenge("abc123", "timeControl");
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/api\/challenge\/abc123\/decline$/);
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(calls[0].options.body, "reason=timeControl");
+});
