@@ -1,0 +1,15 @@
+{
+  "available": false,
+  "provider_status": "quarantined",
+  "fallback_action": "search",
+  "retryable": true,
+  "quarantine": {
+    "active": true,
+    "reason": "timeout_burst",
+    "until_epoch_ms": 1777559999000
+  },
+  "wdl": null,
+  "best_move": null,
+  "dtm": null,
+  "_contract_version": "v1"
+}

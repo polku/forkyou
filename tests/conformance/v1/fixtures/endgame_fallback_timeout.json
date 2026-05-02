@@ -1,0 +1,11 @@
+{
+  "available": false,
+  "provider_status": "timeout",
+  "fallback_action": "search",
+  "retryable": true,
+  "quarantine": null,
+  "wdl": null,
+  "best_move": null,
+  "dtm": null,
+  "_contract_version": "v1"
+}

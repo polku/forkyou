@@ -1,0 +1,455 @@
+openapi: "3.1.0"
+info:
+  title: Chess Bot Engine Contract
+  version: "1.0.0"
+  description: |
+    Inter-service contract between api-orchestrator (TypeScript/Node.js)
+    and engine-compute (Rust). Transport: HTTP/1.1 + JSON.
+    Schema authority: this file. See contract-core-v1.md for policy details.
+  contact:
+    name: Backend Engineer (FOR-40)
+
+servers:
+  - url: http://engine-compute:8080
+    description: Local single-host binding (MVP)
+
+paths:
+  /v1/move:
+    post:
+      operationId: selectMove
+      summary: Select the best move for a given position
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveRequest"
+      responses:
+        "200":
+          description: Move selected successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveResponse"
+        "400":
+          description: Invalid input (malformed FEN or illegal position)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "504":
+          description: Engine timeout (partial result may be included)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeoutResponse"
+
+  /v1/analyze:
+    post:
+      operationId: analyzePosition
+      summary: Deep analysis of a position (analysis time control)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeRequest"
+      responses:
+        "200":
+          description: Analysis complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+
+  /v1/opening:
+    post:
+      operationId: lookupOpening
+      summary: Look up the best opening move from the book
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpeningRequest"
+      responses:
+        "200":
+          description: Opening lookup result (move may be null if not in book)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpeningResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+
+  /v1/endgame:
+    post:
+      operationId: probeEndgame
+      summary: Probe endgame tablebase for a position
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndgameRequest"
+      responses:
+        "200":
+          description: Tablebase probe result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EndgameResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+
+  /v1/health:
+    get:
+      operationId: healthCheck
+      summary: Liveness probe — engine process is running
+      responses:
+        "200":
+          description: Engine is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /v1/ready:
+    get:
+      operationId: readinessCheck
+      summary: Readiness probe — engine is ready to serve requests
+      responses:
+        "200":
+          description: Engine is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+components:
+  schemas:
+    ObservabilityContext:
+      type: object
+      required: [request_id, trace_id, correlation_id]
+      properties:
+        request_id:
+          type: string
+          description: Stable id for one API call across service boundary
+        trace_id:
+          type: string
+          description: W3C trace id propagated unchanged across internal calls
+        correlation_id:
+          type: string
+          description: Id to link related calls in one user-level flow
+
+    StorageMetadata:
+      type: object
+      required: [owner, durability, consistency, invalidation_scope]
+      properties:
+        owner:
+          type: string
+          enum: [redis, postgres, ephemeral]
+        durability:
+          type: string
+          enum: [volatile, persistent]
+        consistency:
+          type: string
+          enum: [eventual, strong, not_applicable]
+        invalidation_scope:
+          type: string
+          description: Cache key prefix or table scope used for stale-data invalidation
+
+    MoveRequest:
+      type: object
+      required: [fen, time_control, observability]
+      properties:
+        fen:
+          type: string
+          description: FEN string representing the current position
+          example: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+        time_control:
+          type: string
+          enum: [bullet, blitz, rapid, classical, correspondence, analysis]
+          description: Time control class used to select timeout budget
+        moves_played:
+          type: integer
+          description: Number of half-moves played so far (for book/endgame routing)
+          minimum: 0
+        remaining_ms:
+          type: integer
+          description: Milliseconds remaining on the clock for the side to move
+          minimum: 0
+        observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+
+    MoveResponse:
+      type: object
+      required: [move, _contract_version, _observability, _storage]
+      properties:
+        move:
+          type: string
+          description: Best move in UCI notation (e.g. "e2e4")
+        score_cp:
+          type: integer
+          description: Centipawn evaluation from the perspective of the side to move
+        depth_reached:
+          type: integer
+          description: Search depth reached
+        elapsed_ms:
+          type: integer
+          description: Actual computation time in milliseconds
+        source:
+          type: string
+          enum: [search, opening_book, endgame_tablebase]
+          description: Which sub-system produced the move
+        _contract_version:
+          type: string
+          const: "v1"
+        _observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+        _storage:
+          $ref: "#/components/schemas/StorageMetadata"
+
+    AnalyzeRequest:
+      type: object
+      required: [fen, observability]
+      properties:
+        fen:
+          type: string
+        depth_target:
+          type: integer
+          description: Target search depth (engine may return earlier on timeout)
+          minimum: 1
+          maximum: 40
+        observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+
+    AnalyzeResponse:
+      type: object
+      required: [best_move, _contract_version, _observability, _storage]
+      properties:
+        best_move:
+          type: string
+        pv:
+          type: array
+          items:
+            type: string
+          description: Principal variation in UCI notation
+        score_cp:
+          type: integer
+        depth_reached:
+          type: integer
+        elapsed_ms:
+          type: integer
+        _contract_version:
+          type: string
+          const: "v1"
+        _observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+        _storage:
+          $ref: "#/components/schemas/StorageMetadata"
+
+    OpeningRequest:
+      type: object
+      required: [fen, observability]
+      properties:
+        fen:
+          type: string
+        moves_played:
+          type: integer
+          minimum: 0
+        observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+
+    OpeningResponse:
+      type: object
+      required: [source, _contract_version, _observability, _storage]
+      properties:
+        move:
+          type: string
+          nullable: true
+          description: "UCI move from book, or null if not in book"
+        source:
+          type: string
+          enum: [book, fallback]
+        weight:
+          type: number
+          description: Relative frequency weight of this move in the book (0–1)
+        _contract_version:
+          type: string
+          const: "v1"
+        _observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+        _storage:
+          $ref: "#/components/schemas/StorageMetadata"
+
+    EndgameRequest:
+      type: object
+      required: [fen, observability]
+      properties:
+        fen:
+          type: string
+        observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+
+    EndgameResponse:
+      type: object
+      required: [available, provider_status, fallback_action, retryable, _contract_version, _observability, _storage]
+      properties:
+        available:
+          type: boolean
+          description: Whether tablebase data is available for this position
+        provider_status:
+          type: string
+          enum: [hit, miss, timeout, unavailable, error, quarantined]
+          description: Canonical tablebase-provider outcome status for this probe
+        fallback_action:
+          type: string
+          enum: [none, search, opening, fail_closed]
+          description: Fallback action selected by api-orchestrator for this response
+        retryable:
+          type: boolean
+          description: Whether a client retry is expected to be useful for this outcome
+        quarantine:
+          type: object
+          nullable: true
+          description: Quarantine metadata when provider_status=quarantined
+          required: [active, reason]
+          properties:
+            active:
+              type: boolean
+            reason:
+              type: string
+              enum: [timeout_burst, unavailable_burst, error_burst, manual]
+            until_epoch_ms:
+              type: integer
+              nullable: true
+              description: Optional expiry timestamp for automatic quarantine release
+        wdl:
+          type: string
+          enum: [win, draw, loss]
+          nullable: true
+          description: WDL outcome from the perspective of the side to move
+        best_move:
+          type: string
+          nullable: true
+        dtm:
+          type: integer
+          nullable: true
+          description: Distance to mate (in half-moves), if known
+        _contract_version:
+          type: string
+          const: "v1"
+        _observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+        _storage:
+          $ref: "#/components/schemas/StorageMetadata"
+
+    HealthResponse:
+      type: object
+      required: [status, _contract_version, _observability]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        uptime_ms:
+          type: integer
+        _contract_version:
+          type: string
+          const: "v1"
+        _observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+
+    ErrorResponse:
+      type: object
+      required: [error, status_code, retryable, _contract_version, _observability]
+      properties:
+        error:
+          type: string
+          enum: [invalid_input, unavailable, timeout, internal_error, dependency_error, rate_limited]
+        status_code:
+          type: integer
+          enum: [400, 429, 500, 503, 504]
+          description: Canonical HTTP status mapped from the error code
+        retryable:
+          type: boolean
+          description: Whether caller should retry this request without mutation
+        message:
+          type: string
+          description: Human-readable error description (not for programmatic use)
+        _contract_version:
+          type: string
+          const: "v1"
+        _observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+
+    TimeoutResponse:
+      type: object
+      required: [error, _contract_version, _observability]
+      properties:
+        error:
+          type: string
+          const: "timeout"
+        partial_result:
+          type: object
+          nullable: true
+          description: Best move found before timeout (may be null if depth < 3)
+          properties:
+            move:
+              type: string
+              nullable: true
+            score_cp:
+              type: integer
+        depth_reached:
+          type: integer
+        elapsed_ms:
+          type: integer
+        _contract_version:
+          type: string
+          const: "v1"
+        _observability:
+          $ref: "#/components/schemas/ObservabilityContext"
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unavailable:
+      description: Engine unavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Timeout:
+      description: Engine timeout
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/TimeoutResponse"

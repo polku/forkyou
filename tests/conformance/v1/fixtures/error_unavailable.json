@@ -1,0 +1,12 @@
+{
+  "error": "unavailable",
+  "status_code": 503,
+  "retryable": true,
+  "message": "engine-compute not ready — startup in progress",
+  "_contract_version": "v1",
+  "_observability": {
+    "request_id": "req-aa73d114",
+    "trace_id": "58b2142f3d1745a98c98142b0b30b8bf",
+    "correlation_id": "corr-dc3da921"
+  }
+}

@@ -1,0 +1,49 @@
+Loading manifest: /home/jmaurice/.paperclip/instances/default/projects/efc63cdc-90d2-4193-9e36-bf3aa97ac145/fa925ea0-67ac-4349-aa5c-9c9eea6b13ff/_default/benchmarks/endgames/positions-manifest.json
+Loaded 24 positions.
+Using stub adapter (set ENDGAMES_ADAPTER_MODULE for real adapter).
+
+Running 20 iterations per position (gate: ci_gate)…
+........................
+
+=== Endgames Benchmark Results ===
+Provider:    tablebase_local
+Run at:      2026-05-01T22:49:46.985Z
+Contract:    EndgameContract v1 (FOR-37 / FOR-38)
+Total runs:  480 (20/position)
+Timeout:     200ms
+
+Aggregate latency:
+  p50=4.78ms  p95=5.56ms  p99=6.12ms  mean=4.78ms
+  failure-rate=12.50% (raw)  unexpected=0.00% (gate)
+  correct-status-rate=100.00%
+
+Per-position summary:
+  ID          p50      p95      p99   fail%    ok%
+  kqk-01         4.2     7.3     8.2    0.0%   100%
+  kqk-02         4.4     8.4     8.4    0.0%   100%
+  kqk-03         4.3     7.5     8.5    0.0%   100%
+  krk-01         5.3     7.7     8.6    0.0%   100%
+  krk-02         5.4     8.6     8.7    0.0%   100%
+  krk-03         3.6     8.4     8.5    0.0%   100%
+  kbnk-01        3.6     7.6     8.6    0.0%   100%
+  kbnk-02        3.6     6.6     7.6    0.0%   100%
+  kpk-01         4.3     8.9     8.9    0.0%   100%
+  kpk-02         4.5     7.7     8.7    0.0%   100%
+  kpk-03         4.5     7.6     8.5    0.0%   100%
+  kvk-01         6.5     8.6     8.6    0.0%   100%
+  5p-01          4.4     8.4     8.7    0.0%   100%
+  5p-02          3.2     6.3     6.3    0.0%   100%
+  5p-03          4.4     8.5     8.6    0.0%   100%
+  5p-04          4.3     6.8     8.4    0.0%   100%
+  50m-01         4.5     7.8     8.8    0.0%   100%
+  50m-02         5.3     8.4     8.6    0.0%   100%
+  50m-03         5.6     8.8     8.9    0.0%   100%
+  uns-01         5.3     7.7     7.7    0.0%   100%
+  uns-02         4.2     8.6     8.7    0.0%   100%
+  inv-01         5.4     8.6     8.6  100.0%   100%
+  inv-02         4.3     8.5     8.7  100.0%   100%
+  inv-03         5.5     8.4     8.6  100.0%   100%
+
+[GATE PASS] All thresholds satisfied.
+
+Report written to: benchmarks/endgames/replay-proof/run2.json

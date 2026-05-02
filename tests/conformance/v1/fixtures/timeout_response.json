@@ -1,0 +1,15 @@
+{
+  "error": "timeout",
+  "partial_result": {
+    "move": "e7e5",
+    "score_cp": -15
+  },
+  "depth_reached": 5,
+  "elapsed_ms": 448,
+  "_contract_version": "v1",
+  "_observability": {
+    "request_id": "req-fab2c5c0",
+    "trace_id": "71f50f8c865b4fbc8c8f8f66d2ef7d3c",
+    "correlation_id": "corr-994ae11d"
+  }
+}
