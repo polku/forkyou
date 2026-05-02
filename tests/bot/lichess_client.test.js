@@ -99,3 +99,21 @@ test("LichessClient creates challenge with clock payload", async () => {
   assert.match(calls[0].options.body, /clock\.limit=120/);
   assert.match(calls[0].options.body, /clock\.increment=2/);
 });
+
+test("LichessClient createChallenge attaches parsed error details", async () => {
+  const client = new LichessClient({
+    token: "tkn",
+    fetchImpl: async () => ({
+      ok: false,
+      status: 400,
+      async text() {
+        return '{"error":"daily limit","ratelimit":{"seconds":42}}';
+      },
+    }),
+  });
+
+  await assert.rejects(
+    () => client.createChallenge("botX", { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 }),
+    (err) => err.status === 400 && err.details?.ratelimit?.seconds === 42
+  );
+});

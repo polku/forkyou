@@ -9,6 +9,8 @@ const {
   maybeStartOutboundChallenge,
   parseBoolean,
   parseOptionalNumber,
+  rankBotsByRating,
+  computeChallengeCooldownMs,
   selectClosestBot,
 } = require("../../src/bot/main");
 
@@ -107,7 +109,13 @@ test("maybeStartOutboundChallenge creates challenge when eligible", async () => 
   };
   const logs = [];
   const logger = { info: (msg) => logs.push(msg), warn: (msg) => logs.push(msg) };
-  const state = { hasActiveGame: false, targetGamesReached: false, pendingOutboundChallenge: false, me: null };
+  const state = {
+    hasActiveGame: false,
+    targetGamesReached: false,
+    pendingOutboundChallenge: false,
+    opponentCooldownUntil: new Map(),
+    me: null,
+  };
 
   await maybeStartOutboundChallenge({
     client,
@@ -122,4 +130,61 @@ test("maybeStartOutboundChallenge creates challenge when eligible", async () => 
   assert.equal(calls[2][1], "botA");
   assert.equal(state.pendingOutboundChallenge, false);
   assert.ok(logs.some((l) => l.includes("Challenge created")));
+});
+
+test("rankBotsByRating orders opponents by closest rating", () => {
+  const me = { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+  const ranked = rankBotsByRating(
+    [
+      { username: "mybot", perfs: { blitz: { rating: 1500 } } },
+      { username: "far", perfs: { blitz: { rating: 1900 } } },
+      { username: "near", perfs: { blitz: { rating: 1510 } } },
+    ],
+    me
+  );
+  assert.deepEqual(ranked, ["near", "far"]);
+});
+
+test("computeChallengeCooldownMs uses ratelimit seconds when present", () => {
+  assert.equal(computeChallengeCooldownMs({ details: { ratelimit: { seconds: 30 } } }), 30000);
+  assert.equal(computeChallengeCooldownMs({}), 300000);
+});
+
+test("maybeStartOutboundChallenge retries with next opponent after rate-limit failure", async () => {
+  const client = {
+    async getAccount() {
+      return { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+    },
+    async getOnlineBots() {
+      return [
+        { username: "botA", perfs: { blitz: { rating: 1501 } } },
+        { username: "botB", perfs: { blitz: { rating: 1502 } } },
+      ];
+    },
+    async createChallenge(username) {
+      if (username === "botA") {
+        const err = new Error("challenge create failed (400): rate");
+        err.details = { ratelimit: { seconds: 10 } };
+        throw err;
+      }
+      return { challenge: { id: "ok" } };
+    },
+  };
+  const logger = { info: () => {}, warn: () => {} };
+  const state = {
+    hasActiveGame: false,
+    targetGamesReached: false,
+    pendingOutboundChallenge: false,
+    opponentCooldownUntil: new Map(),
+    me: null,
+  };
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  assert.ok(state.opponentCooldownUntil.get("botA") > Date.now());
 });

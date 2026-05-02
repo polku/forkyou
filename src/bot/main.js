@@ -83,6 +83,33 @@ function selectClosestBot(onlineBots, me) {
   return withScores[0]?.username || candidates[0];
 }
 
+function rankBotsByRating(onlineBots, me) {
+  const myName = me?.username;
+  const myRating = extractComparableRating(me?.perfs);
+  const out = [];
+
+  for (const bot of onlineBots) {
+    const username = bot?.username || bot?.name || bot?.id;
+    if (!username || username === myName) {
+      continue;
+    }
+    const rating = extractComparableRating(bot?.perfs);
+    const delta = myRating === null || rating === null ? Number.POSITIVE_INFINITY : Math.abs(rating - myRating);
+    out.push({ username, delta });
+  }
+
+  out.sort((a, b) => a.delta - b.delta);
+  return out.map((row) => row.username);
+}
+
+function computeChallengeCooldownMs(err) {
+  const seconds = err?.details?.ratelimit?.seconds;
+  if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0) {
+    return seconds * 1000;
+  }
+  return 5 * 60 * 1000;
+}
+
 async function maybeStartOutboundChallenge({ client, logger, state, challengeOptions }) {
   if (state.hasActiveGame || state.targetGamesReached || state.pendingOutboundChallenge) {
     return;
@@ -97,17 +124,34 @@ async function maybeStartOutboundChallenge({ client, logger, state, challengeOpt
 
     logger.info("Looking for online bots to challenge");
     const onlineBots = await client.getOnlineBots();
-    const opponent = selectClosestBot(onlineBots, state.me);
+    const rankedOpponents = rankBotsByRating(onlineBots, state.me);
 
-    if (!opponent) {
+    const now = Date.now();
+    const opponents = rankedOpponents.filter((username) => {
+      const until = state.opponentCooldownUntil.get(username) || 0;
+      return until <= now;
+    });
+
+    if (opponents.length === 0) {
       logger.info("No eligible online bot found yet; retrying soon");
       return;
     }
 
-    logger.info(`Sending outbound challenge to ${opponent}`);
-    const challengeResult = await client.createChallenge(opponent, challengeOptions);
-    const challengeId = challengeResult.challenge?.id || challengeResult.id || "unknown";
-    logger.info(`Challenge created: ${challengeId} -> ${opponent}`);
+    for (const opponent of opponents) {
+      logger.info(`Sending outbound challenge to ${opponent}`);
+      try {
+        const challengeResult = await client.createChallenge(opponent, challengeOptions);
+        const challengeId = challengeResult.challenge?.id || challengeResult.id || "unknown";
+        logger.info(`Challenge created: ${challengeId} -> ${opponent}`);
+        return;
+      } catch (err) {
+        const cooldownMs = computeChallengeCooldownMs(err);
+        state.opponentCooldownUntil.set(opponent, now + cooldownMs);
+        logger.warn(`challenge to ${opponent} failed; cooling down opponent for ${Math.ceil(cooldownMs / 1000)}s: ${err.message}`);
+      }
+    }
+
+    logger.info("No outbound challenge was accepted/created this cycle; retrying soon");
   } catch (err) {
     logger.warn(`outbound challenge cycle failed: ${err.message}`);
   } finally {
@@ -140,6 +184,7 @@ async function run() {
     targetGamesStarted: 0,
     targetGamesReached: false,
     pendingOutboundChallenge: false,
+    opponentCooldownUntil: new Map(),
     me: null,
   };
 
@@ -246,6 +291,8 @@ module.exports = {
   parseBoolean,
   parseOptionalNumber,
   selectClosestBot,
+  rankBotsByRating,
+  computeChallengeCooldownMs,
   maybeStartOutboundChallenge,
   run,
 };

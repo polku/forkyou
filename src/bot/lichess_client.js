@@ -103,7 +103,15 @@ class LichessClient {
 
     const payload = await res.text();
     if (!res.ok) {
-      throw new Error(`challenge create failed (${res.status}): ${payload}`);
+      const error = new Error(`challenge create failed (${res.status}): ${payload}`);
+      error.status = res.status;
+      error.body = payload;
+      try {
+        error.details = payload ? JSON.parse(payload) : null;
+      } catch {
+        error.details = null;
+      }
+      throw error;
     }
     return payload ? JSON.parse(payload) : {};
   }
