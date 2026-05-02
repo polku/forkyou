@@ -1,0 +1,6 @@
+{
+  "sameDeterministicOutcomeShape": true,
+  "gateVerdictRun1": "PASS",
+  "gateVerdictRun2": "PASS",
+  "sameGateVerdict": true
+}
