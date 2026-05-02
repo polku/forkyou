@@ -33,6 +33,10 @@ class BaselineMovePolicy {
     assertValidDecisionResult(result);
     return result;
   }
+
+  decide(context) {
+    return this.selectMove(context);
+  }
 }
 
 module.exports = {

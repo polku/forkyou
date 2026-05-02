@@ -117,6 +117,14 @@ test("baseline policy accepts custom policyId", () => {
   assert.equal(result.source, "custom-baseline");
 });
 
+test("baseline policy exposes decide(context) for circuit-breaker compatibility", () => {
+  const policy = new BaselineMovePolicy();
+  const result = policy.decide({ legalMoves: ["e2e4", "d2d4"], requestId: "req-decide" });
+  assert.equal(result.move, "e2e4");
+  assert.equal(result.source, DecisionSource.BASELINE);
+  assert.equal(result.traceId, "req-decide");
+});
+
 // --- MoveDecisionConnector ---
 
 test("connector construction fails without policy", () => {
