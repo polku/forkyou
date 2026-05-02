@@ -39,6 +39,21 @@ function computeLegalMovesFromHistory(movesStr) {
   return chess.moves({ verbose: true }).map((m) => `${m.from}${m.to}${m.promotion || ""}`);
 }
 
+function computeFenFromHistory(movesStr) {
+  const chess = new Chess();
+  if (movesStr && movesStr.trim()) {
+    for (const uci of movesStr.trim().split(/\s+/)) {
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const promotion = uci.length === 5 ? uci[4] : undefined;
+      if (!chess.move({ from, to, ...(promotion ? { promotion } : {}) })) {
+        return null;
+      }
+    }
+  }
+  return chess.fen();
+}
+
 async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor, moveLatencyBudgetMs = 200 }) {
   let outcome = { terminal: false, status: "started", result: "ongoing" };
 
@@ -69,10 +84,17 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
       continue;
     }
 
-    const decision = decisionPolicy.decide({
+    const fen = computeFenFromHistory(state.moves);
+    if (!fen) {
+      logger.warn(`game ${gameId}: unable to compute FEN from history; waiting for next state`);
+      continue;
+    }
+
+    const decision = await decisionPolicy.decide({
       gameId,
       botColor,
       legalMoves,
+      fen,
       state,
     });
 
@@ -96,5 +118,6 @@ module.exports = {
   inferTurnFromMoves,
   extractLegalMovesFromEvent,
   computeLegalMovesFromHistory,
+  computeFenFromHistory,
   runSingleGame,
 };

@@ -47,6 +47,8 @@ test("assertValidDecisionResult accepts valid result", () => {
 
 test("DecisionSource.BASELINE is defined", () => {
   assert.equal(DecisionSource.BASELINE, "baseline");
+  assert.equal(DecisionSource.UCI, "uci");
+  assert.equal(DecisionSource.UCI_FALLBACK, "uci_fallback");
 });
 
 // --- BaselineMovePolicy ---

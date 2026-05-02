@@ -2,6 +2,9 @@
 
 const { LichessClient } = require("./lichess_client");
 const { RandomLegalMovePolicy } = require("../decision/random_legal_move_policy");
+const { BaselineMovePolicy } = require("../decision/baseline_policy");
+const { UciEnginePolicy } = require("../decision/uci_engine_policy");
+const { EngineCircuitBreaker } = require("../decision/engine_circuit_breaker");
 const { runSingleGame } = require("./game_loop");
 
 function parseBoolean(value, defaultValue = false) {
@@ -199,17 +202,44 @@ async function run() {
   const activeChallengeClockSeconds = Number(process.env.ACTIVE_CHALLENGE_CLOCK_SECONDS || "60");
   const activeChallengeClockIncrement = Number(process.env.ACTIVE_CHALLENGE_CLOCK_INCREMENT || "0");
   const outboundTickMs = Number(process.env.ACTIVE_CHALLENGE_TICK_MS || "5000");
+  const decisionProvider = (process.env.DECISION_PROVIDER || "uci").toLowerCase();
+  const fallbackMode = (process.env.FALLBACK_MODE || "first_legal").toLowerCase();
+  const engineFailureThreshold = Number(process.env.ENGINE_FAILURE_THRESHOLD || "3");
+  const engineRecoveryDelayMs = Number(process.env.ENGINE_RECOVERY_DELAY_MS || "0");
 
   if (!token) {
     throw new Error("Missing LICHESS_BOT_TOKEN");
   }
 
   const client = new LichessClient({ token });
-  const decisionPolicy = new RandomLegalMovePolicy();
   const logger = {
     info: (msg) => console.log(`[info] ${msg}`),
     warn: (msg) => console.warn(`[warn] ${msg}`),
   };
+
+  const fallbackPolicy = fallbackMode === "random"
+    ? new RandomLegalMovePolicy()
+    : new BaselineMovePolicy({ random: false });
+
+  let decisionPolicy;
+  if (decisionProvider === "random" || decisionProvider === "baseline") {
+    decisionPolicy = new RandomLegalMovePolicy();
+    logger.info(`provider=baseline (DECISION_PROVIDER=${decisionProvider})`);
+  } else {
+    const uciPolicy = new UciEnginePolicy();
+    decisionPolicy = new EngineCircuitBreaker({
+      primary: uciPolicy,
+      fallback: fallbackPolicy,
+      threshold: engineFailureThreshold,
+      recoveryDelayMs: engineRecoveryDelayMs,
+      logger,
+    });
+    logger.info(
+      `provider=uci fallback=${fallbackMode} failure-threshold=${engineFailureThreshold}` +
+        ` recovery-delay=${engineRecoveryDelayMs}ms`
+    );
+  }
+
   const state = {
     hasActiveGame: false,
     targetGamesStarted: 0,
@@ -330,6 +360,9 @@ async function run() {
     }
   } finally {
     clearInterval(outboundTimer);
+    if (typeof decisionPolicy.close === "function") {
+      await decisionPolicy.close();
+    }
   }
 }
 

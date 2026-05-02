@@ -3,7 +3,13 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 
-const { inferTurnFromMoves, extractLegalMovesFromEvent, computeLegalMovesFromHistory, runSingleGame } = require("../../src/bot/game_loop");
+const {
+  inferTurnFromMoves,
+  extractLegalMovesFromEvent,
+  computeLegalMovesFromHistory,
+  computeFenFromHistory,
+  runSingleGame,
+} = require("../../src/bot/game_loop");
 
 test("fallbackOpeningMove is not exported (no fixed e2e4 path)", () => {
   const exports = require("../../src/bot/game_loop");
@@ -33,6 +39,13 @@ test("computeLegalMovesFromHistory computes legal moves from UCI history", () =>
   assert.deepEqual(bad, [], "invalid UCI returns empty array");
 });
 
+test("computeFenFromHistory computes FEN and returns null for invalid history", () => {
+  const fen = computeFenFromHistory("e2e4 e7e5");
+  assert.equal(typeof fen, "string");
+  assert.ok(fen.startsWith("rnbqkbnr/pppp1ppp"));
+  assert.equal(computeFenFromHistory("badmove"), null);
+});
+
 test("runSingleGame submits a move and stops on terminal state", async () => {
   const moves = [];
   const events = [
@@ -53,7 +66,8 @@ test("runSingleGame submits a move and stops on terminal state", async () => {
   };
 
   const decisionPolicy = {
-    decide({ legalMoves }) {
+    async decide({ legalMoves, fen }) {
+      assert.equal(typeof fen, "string");
       const move = legalMoves.includes("e2e4") ? "e2e4" : legalMoves[0];
       return { move, latencyMs: 2, source: "baseline" };
     },

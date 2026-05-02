@@ -2,6 +2,8 @@
 
 const DecisionSource = Object.freeze({
   BASELINE: "baseline",
+  UCI: "uci",
+  UCI_FALLBACK: "uci_fallback",
 });
 
 function assertValidDecisionResult(result) {
