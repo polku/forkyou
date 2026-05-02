@@ -1,5 +1,6 @@
 "use strict";
 
+const { Chess } = require("../../scripts/bot/chess_lib");
 const { normalizeOutcome } = require("./terminal");
 
 function inferTurnFromMoves(moves) {
@@ -21,6 +22,21 @@ function extractLegalMovesFromEvent(event) {
   }
 
   return [];
+}
+
+function computeLegalMovesFromHistory(movesStr) {
+  const chess = new Chess();
+  if (movesStr && movesStr.trim()) {
+    for (const uci of movesStr.trim().split(/\s+/)) {
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const promotion = uci.length === 5 ? uci[4] : undefined;
+      if (!chess.move({ from, to, ...(promotion ? { promotion } : {}) })) {
+        return [];
+      }
+    }
+  }
+  return chess.moves({ verbose: true }).map((m) => `${m.from}${m.to}${m.promotion || ""}`);
 }
 
 async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor, moveLatencyBudgetMs = 200 }) {
@@ -47,7 +63,7 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
       continue;
     }
 
-    const legalMoves = extractLegalMovesFromEvent(state);
+    const legalMoves = computeLegalMovesFromHistory(state.moves);
     if (legalMoves.length === 0) {
       logger.warn(`game ${gameId}: no legalMoves present in event; waiting for next state`);
       continue;
@@ -79,5 +95,6 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
 module.exports = {
   inferTurnFromMoves,
   extractLegalMovesFromEvent,
+  computeLegalMovesFromHistory,
   runSingleGame,
 };

@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 
-const { inferTurnFromMoves, extractLegalMovesFromEvent, runSingleGame } = require("../../src/bot/game_loop");
+const { inferTurnFromMoves, extractLegalMovesFromEvent, computeLegalMovesFromHistory, runSingleGame } = require("../../src/bot/game_loop");
 
 test("fallbackOpeningMove is not exported (no fixed e2e4 path)", () => {
   const exports = require("../../src/bot/game_loop");
@@ -21,10 +21,22 @@ test("extractLegalMovesFromEvent handles array and string", () => {
   assert.deepEqual(extractLegalMovesFromEvent({ legalMoves: "e2e4 d2d4" }), ["e2e4", "d2d4"]);
 });
 
+test("computeLegalMovesFromHistory computes legal moves from UCI history", () => {
+  const opening = computeLegalMovesFromHistory("e2e4 e7e5");
+  assert.ok(opening.length > 0, "should return legal moves after 1.e4 e5");
+  assert.ok(opening.includes("g1f3"), "Nf3 should be legal after 1.e4 e5");
+
+  const empty = computeLegalMovesFromHistory("");
+  assert.equal(empty.length, 20, "starting position has 20 legal moves");
+
+  const bad = computeLegalMovesFromHistory("z9z9");
+  assert.deepEqual(bad, [], "invalid UCI returns empty array");
+});
+
 test("runSingleGame submits a move and stops on terminal state", async () => {
   const moves = [];
   const events = [
-    { type: "gameState", moves: "", status: "started", legalMoves: ["e2e4"] },
+    { type: "gameState", moves: "", status: "started" },
     { type: "gameState", moves: "e2e4", status: "mate", winner: "white" },
   ];
 
@@ -41,8 +53,9 @@ test("runSingleGame submits a move and stops on terminal state", async () => {
   };
 
   const decisionPolicy = {
-    decide() {
-      return { move: "e2e4", latencyMs: 2, source: "baseline" };
+    decide({ legalMoves }) {
+      const move = legalMoves.includes("e2e4") ? "e2e4" : legalMoves[0];
+      return { move, latencyMs: 2, source: "baseline" };
     },
   };
 
@@ -61,12 +74,12 @@ test("runSingleGame submits a move and stops on terminal state", async () => {
   assert.equal(outcome.terminal, true);
 });
 
-test("runSingleGame skips and warns when legalMoves is empty (no fallback submitted)", async () => {
+test("runSingleGame skips and warns when computeLegalMovesFromHistory returns empty", async () => {
   const moves = [];
   const warnings = [];
   const events = [
-    { type: "gameState", moves: "", status: "started", legalMoves: [] },
-    { type: "gameState", moves: "", status: "aborted" },
+    { type: "gameState", moves: "x1x1 y2y2", status: "started" },
+    { type: "gameState", moves: "x1x1 y2y2", status: "aborted" },
   ];
 
   const client = {
@@ -109,7 +122,7 @@ test("runSingleGame skips and warns when policy returns an illegal move", async 
   const moves = [];
   const warnings = [];
   const events = [
-    { type: "gameState", moves: "", status: "started", legalMoves: ["d2d4", "c2c4"] },
+    { type: "gameState", moves: "", status: "started" },
     { type: "gameState", moves: "d2d4", status: "mate", winner: "white" },
   ];
 
@@ -127,7 +140,7 @@ test("runSingleGame skips and warns when policy returns an illegal move", async 
 
   const decisionPolicy = {
     decide() {
-      return { move: "e2e4", latencyMs: 1, source: "baseline" };
+      return { move: "a1a1", latencyMs: 1, source: "baseline" };
     },
   };
 

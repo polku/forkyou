@@ -57,6 +57,22 @@ class LichessClient {
 
     return true;
   }
+
+  async acceptChallenge(challengeId) {
+    const res = await this.fetchImpl(`${this.baseUrl}/api/challenge/${challengeId}/accept`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`challenge accept failed (${res.status}): ${body}`);
+    }
+
+    return true;
+  }
 }
 
 async function *parseNdjson(response) {

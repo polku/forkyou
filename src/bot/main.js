@@ -20,6 +20,17 @@ async function run() {
   };
 
   for await (const event of client.streamIncomingEvents()) {
+    if (event.type === "challenge") {
+      const challengeId = event.challenge?.id;
+      if (challengeId) {
+        logger.info(`accepting challenge ${challengeId}`);
+        await client.acceptChallenge(challengeId).catch((err) =>
+          logger.warn(`challenge ${challengeId} accept failed: ${err.message}`)
+        );
+      }
+      continue;
+    }
+
     if (event.type !== "gameStart") {
       continue;
     }
