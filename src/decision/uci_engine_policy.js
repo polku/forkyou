@@ -19,6 +19,9 @@ class UciEnginePolicy {
     this.commandTimeoutMs = Number(options.commandTimeoutMs || 1000);
     this.now = options.now || (() => Date.now());
     this.spawnFn = options.spawnFn || spawn;
+    this.logger = options.logger || { info: () => {}, warn: () => {} };
+    this.randomFallback = options.randomFallback !== undefined ? Boolean(options.randomFallback) : true;
+    this.rng = options.rng || Math.random;
 
     this.proc = null;
     this.buffer = "";
@@ -30,7 +33,6 @@ class UciEnginePolicy {
 
   async decide(context) {
     const start = this.now();
-    const fallback = this.#fallbackDecision(context, start);
 
     try {
       await this.#ensureStarted();
@@ -46,8 +48,9 @@ class UciEnginePolicy {
       };
       assertValidDecisionResult(result);
       return result;
-    } catch (_err) {
-      return fallback;
+    } catch (err) {
+      this.logger.warn(`[uci-engine] falling back to random legal move: ${err.message}`);
+      return this.#fallbackDecision(context, start);
     }
   }
 
@@ -79,10 +82,13 @@ class UciEnginePolicy {
   }
 
   #fallbackDecision(context, start) {
-    const move = Array.isArray(context?.legalMoves) && context.legalMoves.length > 0 ? context.legalMoves[0] : null;
-    if (!move) {
+    const moves = context?.legalMoves;
+    if (!Array.isArray(moves) || moves.length === 0) {
       throw new Error("UciEnginePolicy requires non-empty legalMoves array");
     }
+    const move = this.randomFallback
+      ? moves[Math.floor(this.rng() * moves.length)]
+      : moves[0];
     const result = {
       move,
       latencyMs: Math.max(0, this.now() - start),
@@ -122,21 +128,34 @@ class UciEnginePolicy {
 
     proc.stdout.on("data", (chunk) => this.#onStdout(chunk.toString("utf8")));
     proc.stderr.on("data", () => {});
-    proc.on("error", () => {
+    proc.on("error", (err) => {
+      this.logger.warn(`[uci-engine] process error (path=${this.enginePath}): ${err.message}`);
       this.proc = null;
     });
-    proc.on("exit", () => {
-      this.proc = null;
+    proc.on("exit", (code) => {
+      if (this.proc === proc) {
+        this.logger.warn(`[uci-engine] process exited unexpectedly (code=${code})`);
+        this.proc = null;
+      }
       while (this.waiters.length > 0) {
         const waiter = this.waiters.shift();
         waiter.reject(new UciEngineError("engine process exited", "unavailable"));
       }
     });
 
-    await this.#write("uci\n");
-    await this.#waitForLine((line) => line === "uciok", this.startTimeoutMs, "uci handshake timeout");
-    await this.#write("isready\n");
-    await this.#waitForLine((line) => line === "readyok", this.startTimeoutMs, "ready handshake timeout");
+    try {
+      await this.#write("uci\n");
+      await this.#waitForLine((line) => line === "uciok", this.startTimeoutMs, "uci handshake timeout");
+      await this.#write("isready\n");
+      await this.#waitForLine((line) => line === "readyok", this.startTimeoutMs, "ready handshake timeout");
+    } catch (err) {
+      // Ensure the zombie proc doesn't block future restarts.
+      if (this.proc === proc) {
+        this.proc = null;
+      }
+      try { proc.kill(); } catch (_) {}
+      throw err;
+    }
   }
 
   async #queryBestMove(fen) {

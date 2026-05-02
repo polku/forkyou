@@ -203,7 +203,7 @@ async function run() {
   const activeChallengeClockIncrement = Number(process.env.ACTIVE_CHALLENGE_CLOCK_INCREMENT || "0");
   const outboundTickMs = Number(process.env.ACTIVE_CHALLENGE_TICK_MS || "5000");
   const decisionProvider = (process.env.DECISION_PROVIDER || "uci").toLowerCase();
-  const fallbackMode = (process.env.FALLBACK_MODE || "first_legal").toLowerCase();
+  const fallbackMode = (process.env.FALLBACK_MODE || "random").toLowerCase();
   const engineFailureThreshold = Number(process.env.ENGINE_FAILURE_THRESHOLD || "3");
   const engineRecoveryDelayMs = Number(process.env.ENGINE_RECOVERY_DELAY_MS || "0");
 
@@ -217,16 +217,16 @@ async function run() {
     warn: (msg) => console.warn(`[warn] ${msg}`),
   };
 
-  const fallbackPolicy = fallbackMode === "random"
-    ? new RandomLegalMovePolicy()
-    : new BaselineMovePolicy({ random: false });
+  const fallbackPolicy = fallbackMode === "first_legal"
+    ? new BaselineMovePolicy({ random: false })
+    : new RandomLegalMovePolicy();
 
   let decisionPolicy;
   if (decisionProvider === "random" || decisionProvider === "baseline") {
     decisionPolicy = new RandomLegalMovePolicy();
     logger.info(`provider=baseline (DECISION_PROVIDER=${decisionProvider})`);
   } else {
-    const uciPolicy = new UciEnginePolicy();
+    const uciPolicy = new UciEnginePolicy({ logger });
     decisionPolicy = new EngineCircuitBreaker({
       primary: uciPolicy,
       fallback: fallbackPolicy,
