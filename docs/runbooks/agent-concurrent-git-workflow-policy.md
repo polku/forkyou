@@ -1,0 +1,25 @@
+# Agent Concurrent Git Workflow Policy (FOR-222)
+
+## Purpose
+Prevent multi-agent commit collisions and accidental staging of unrelated changes when several agents work in parallel.
+
+## Required Policy
+1. Assume other agents may modify the same repository at any time.
+2. Use an isolated worktree per assigned issue.
+3. Stage only in-scope paths after checking `git status --short`.
+4. Do not revert or delete unrelated changes blindly.
+5. Coordinate when two active issues touch the same files.
+6. Resolve only issue-relevant conflict hunks and rerun minimal verification.
+7. Do not use destructive cleanup commands (`git reset --hard`, `git checkout -- .`) unless explicitly instructed.
+8. Push immediately after successful scoped commits and include branch/SHA in heartbeat updates.
+
+## Runtime Rollout Scope
+This policy has been inserted into each active runtime agent instruction file at:
+- `/home/jmaurice/.paperclip/instances/default/companies/efc63cdc-90d2-4193-9e36-bf3aa97ac145/agents/*/instructions/AGENTS.md`
+
+## Verification
+- Confirm section exists: `rg -n "^## Concurrent Git Workflow" /home/jmaurice/.paperclip/instances/default/companies/efc63cdc-90d2-4193-9e36-bf3aa97ac145/agents/*/instructions/AGENTS.md`
+- Confirm shared key constraints exist (worktree, scoped staging, no destructive cleanup).
+
+## Ownership
+CTO owns this policy; role-specific instruction files must continue to include this section.
