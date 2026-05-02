@@ -175,3 +175,75 @@ test("runSingleGame skips and warns when policy returns an illegal move", async 
   assert.equal(moves.length, 0, "illegal move from policy must not be submitted");
   assert.ok(warnings.some((w) => w.includes("illegal move")), "should warn about illegal move");
 });
+
+test("runSingleGame handles 'game already over' rejection from makeMove without throwing", async () => {
+  const warnings = [];
+  const events = [
+    { type: "gameState", moves: "", status: "started" },
+  ];
+
+  const client = {
+    async *streamGame() {
+      for (const event of events) {
+        yield event;
+      }
+    },
+    async makeMove() {
+      throw new Error("move submission failed (400): {\"error\":\"Not your turn, or game already over\"}");
+    },
+  };
+
+  const decisionPolicy = {
+    decide({ legalMoves }) {
+      return { move: legalMoves[0], latencyMs: 1, source: "baseline" };
+    },
+  };
+
+  const logger = {
+    info: () => {},
+    warn: (msg) => warnings.push(msg),
+  };
+
+  const outcome = await runSingleGame({
+    client,
+    decisionPolicy,
+    logger,
+    gameId: "g4",
+    botColor: "white",
+    moveLatencyBudgetMs: 200,
+  });
+
+  assert.ok(warnings.some((w) => w.includes("game already over")), "should warn about rejected move");
+  assert.equal(outcome.terminal, false, "outcome reflects last seen state before rejection");
+});
+
+test("runSingleGame re-throws unexpected makeMove errors", async () => {
+  const events = [
+    { type: "gameState", moves: "", status: "started" },
+  ];
+
+  const client = {
+    async *streamGame() {
+      for (const event of events) {
+        yield event;
+      }
+    },
+    async makeMove() {
+      throw new Error("move submission failed (500): internal server error");
+    },
+  };
+
+  const decisionPolicy = {
+    decide({ legalMoves }) {
+      return { move: legalMoves[0], latencyMs: 1, source: "baseline" };
+    },
+  };
+
+  const logger = { info: () => {}, warn: () => {} };
+
+  await assert.rejects(
+    () => runSingleGame({ client, decisionPolicy, logger, gameId: "g5", botColor: "white", moveLatencyBudgetMs: 200 }),
+    /internal server error/,
+    "non-400 errors must propagate"
+  );
+});
