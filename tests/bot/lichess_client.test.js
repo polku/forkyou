@@ -81,3 +81,21 @@ test("LichessClient declines challenge with encoded reason", async () => {
   assert.equal(calls[0].options.method, "POST");
   assert.equal(calls[0].options.body, "reason=timeControl");
 });
+
+test("LichessClient creates challenge with clock payload", async () => {
+  const calls = [];
+  const client = new LichessClient({
+    token: "tkn",
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return responseOk('{"challenge":{"id":"cid"}}');
+    },
+  });
+
+  const out = await client.createChallenge("maia1", { rated: false, clockLimitSeconds: 120, clockIncrementSeconds: 2 });
+
+  assert.equal(out.challenge.id, "cid");
+  assert.match(calls[0].url, /\/api\/challenge\/maia1$/);
+  assert.match(calls[0].options.body, /clock\.limit=120/);
+  assert.match(calls[0].options.body, /clock\.increment=2/);
+});

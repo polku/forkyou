@@ -3,7 +3,14 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 
-const { evaluateChallenge, parseBoolean, parseOptionalNumber } = require("../../src/bot/main");
+const {
+  evaluateChallenge,
+  extractComparableRating,
+  maybeStartOutboundChallenge,
+  parseBoolean,
+  parseOptionalNumber,
+  selectClosestBot,
+} = require("../../src/bot/main");
 
 test("parseBoolean honors explicit true/false and defaults", () => {
   assert.equal(parseBoolean(undefined, false), false);
@@ -64,4 +71,55 @@ test("evaluateChallenge accepts compliant challenge", () => {
     ),
     { action: "accept" }
   );
+});
+
+test("extractComparableRating picks supported perf buckets", () => {
+  assert.equal(extractComparableRating({ blitz: { rating: 1600 } }), 1600);
+  assert.equal(extractComparableRating({ rapid: { rating: 1700 } }), 1700);
+  assert.equal(extractComparableRating({}), null);
+});
+
+test("selectClosestBot chooses non-self nearest rating", () => {
+  const me = { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+  const online = [
+    { username: "mybot", perfs: { blitz: { rating: 1500 } } },
+    { username: "botA", perfs: { blitz: { rating: 1490 } } },
+    { username: "botB", perfs: { blitz: { rating: 1800 } } },
+  ];
+  assert.equal(selectClosestBot(online, me), "botA");
+});
+
+test("maybeStartOutboundChallenge creates challenge when eligible", async () => {
+  const calls = [];
+  const client = {
+    async getAccount() {
+      calls.push("getAccount");
+      return { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+    },
+    async getOnlineBots() {
+      calls.push("getOnlineBots");
+      return [{ username: "botA", perfs: { blitz: { rating: 1510 } } }];
+    },
+    async createChallenge(username, options) {
+      calls.push(["createChallenge", username, options.clockLimitSeconds]);
+      return { challenge: { id: "c1" } };
+    },
+  };
+  const logs = [];
+  const logger = { info: (msg) => logs.push(msg), warn: (msg) => logs.push(msg) };
+  const state = { hasActiveGame: false, targetGamesReached: false, pendingOutboundChallenge: false, me: null };
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  assert.deepEqual(calls[0], "getAccount");
+  assert.deepEqual(calls[1], "getOnlineBots");
+  assert.equal(calls[2][0], "createChallenge");
+  assert.equal(calls[2][1], "botA");
+  assert.equal(state.pendingOutboundChallenge, false);
+  assert.ok(logs.some((l) => l.includes("Challenge created")));
 });

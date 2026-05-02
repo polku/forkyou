@@ -58,6 +58,56 @@ class LichessClient {
     return true;
   }
 
+  async getAccount() {
+    const res = await this.fetchImpl(`${this.baseUrl}/api/account`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`account fetch failed (${res.status}): ${body}`);
+    }
+    return res.json();
+  }
+
+  async getOnlineBots() {
+    const res = await this.fetchImpl(`${this.baseUrl}/api/bot/online`, {
+      method: "GET",
+      headers: this.authHeaders(),
+    });
+    const bots = [];
+    for await (const row of parseNdjson(res)) {
+      bots.push(row);
+    }
+    return bots;
+  }
+
+  async createChallenge(username, options = {}) {
+    const rated = options.rated === true ? "true" : "false";
+    const clockLimit = Number.isFinite(options.clockLimitSeconds) ? Number(options.clockLimitSeconds) : 60;
+    const clockIncrement = Number.isFinite(options.clockIncrementSeconds) ? Number(options.clockIncrementSeconds) : 0;
+    const body = `rated=${rated}&clock.limit=${encodeURIComponent(clockLimit)}&clock.increment=${encodeURIComponent(clockIncrement)}`;
+
+    const res = await this.fetchImpl(`${this.baseUrl}/api/challenge/${encodeURIComponent(username)}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body,
+    });
+
+    const payload = await res.text();
+    if (!res.ok) {
+      throw new Error(`challenge create failed (${res.status}): ${payload}`);
+    }
+    return payload ? JSON.parse(payload) : {};
+  }
+
   async acceptChallenge(challengeId) {
     const res = await this.fetchImpl(`${this.baseUrl}/api/challenge/${challengeId}/accept`, {
       method: "POST",
