@@ -5,9 +5,9 @@ const DEFAULTS = {
   maxThinkMs: Number(process.env.ENGINE_MAX_THINK_MS || "2000"),
   reserveMs: Number(process.env.ENGINE_TIME_RESERVE_MS || "200"),
   incrementFactor: Number(process.env.ENGINE_INCREMENT_FACTOR || "0.8"),
-  openingFraction: Number(process.env.ENGINE_OPENING_TIME_FRACTION || "0.04"),
-  middlegameFraction: Number(process.env.ENGINE_MIDDLEGAME_TIME_FRACTION || "0.06"),
-  endgameFraction: Number(process.env.ENGINE_ENDGAME_TIME_FRACTION || "0.1"),
+  openingFraction: Number(process.env.ENGINE_OPENING_TIME_FRACTION || "0.01"),
+  middlegameFraction: Number(process.env.ENGINE_MIDDLEGAME_TIME_FRACTION || "0.015"),
+  endgameFraction: Number(process.env.ENGINE_ENDGAME_TIME_FRACTION || "0.025"),
 };
 
 function clamp(value, lo, hi) {
