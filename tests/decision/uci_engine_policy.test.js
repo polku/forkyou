@@ -7,7 +7,7 @@ const { test } = require("node:test");
 const { UciEnginePolicy } = require("../../src/decision/uci_engine_policy");
 const { DecisionSource } = require("../../src/decision/contract");
 
-function createFakeEngine({ bestmove = "e2e4", neverBestmove = false, failWrite = false } = {}) {
+function createFakeEngine({ bestmove = "e2e4", neverBestmove = false, failWrite = false, commandLog = [] } = {}) {
   const proc = new EventEmitter();
   proc.stdout = new EventEmitter();
   proc.stderr = new EventEmitter();
@@ -23,6 +23,7 @@ function createFakeEngine({ bestmove = "e2e4", neverBestmove = false, failWrite 
         return;
       }
       const trimmed = command.trim();
+      commandLog.push(trimmed);
       if (trimmed === "uci") {
         setImmediate(() => proc.stdout.emit("data", Buffer.from("uciok\n")));
       } else if (trimmed === "isready") {
@@ -152,5 +153,25 @@ test("UciEnginePolicy logs warning on fallback", async () => {
   await policy.decide({ fen: "startpos", legalMoves: ["e2e4"] });
 
   assert.ok(warnings.some((m) => m.includes("[uci-engine]") && m.includes("falling back")));
+  await policy.close();
+});
+
+test("UciEnginePolicy uses per-move time budget when provided", async () => {
+  const commandLog = [];
+  const policy = new UciEnginePolicy({
+    spawnFn: () => createFakeEngine({ bestmove: "e2e4", commandLog }),
+    commandTimeoutMs: 50,
+    moveTimeMs: 1,
+  });
+
+  const result = await policy.decide({
+    fen: "startpos",
+    legalMoves: ["e2e4", "d2d4"],
+    timeBudgetMs: 321,
+  });
+
+  assert.equal(result.move, "e2e4");
+  assert.equal(result.source, DecisionSource.UCI);
+  assert.ok(commandLog.includes("go movetime 321"));
   await policy.close();
 });

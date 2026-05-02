@@ -36,7 +36,10 @@ class UciEnginePolicy {
 
     try {
       await this.#ensureStarted();
-      const move = await this.#withLock(async () => this.#queryBestMove(context.fen));
+      const moveTimeMs = Number.isFinite(context?.timeBudgetMs) && context.timeBudgetMs > 0
+        ? Math.floor(context.timeBudgetMs)
+        : this.moveTimeMs;
+      const move = await this.#withLock(async () => this.#queryBestMove(context.fen, moveTimeMs));
       if (!move || !context.legalMoves.includes(move)) {
         throw new UciEngineError(`engine returned illegal/empty move: ${move || "empty"}`, "illegal_move");
       }
@@ -158,15 +161,15 @@ class UciEnginePolicy {
     }
   }
 
-  async #queryBestMove(fen) {
+  async #queryBestMove(fen, moveTimeMs) {
     if (typeof fen !== "string" || fen.trim() === "") {
       throw new UciEngineError("missing fen for UCI query", "invalid_input");
     }
     await this.#write(`position fen ${fen}\n`);
-    await this.#write(`go movetime ${this.moveTimeMs}\n`);
+    await this.#write(`go movetime ${moveTimeMs}\n`);
     const line = await this.#waitForLine(
       (value) => value.startsWith("bestmove "),
-      this.commandTimeoutMs + this.moveTimeMs,
+      this.commandTimeoutMs + moveTimeMs,
       "bestmove timeout"
     );
     return line.split(/\s+/)[1] || null;
