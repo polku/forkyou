@@ -107,8 +107,16 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
       logger.warn(`game ${gameId}: move decision exceeded budget ${moveLatencyBudgetMs}ms (${decision.latencyMs}ms)`);
     }
 
-    await client.makeMove(gameId, decision.move);
-    logger.info(`game ${gameId}: submitted move ${decision.move} (${decision.source}, ${decision.latencyMs}ms)`);
+    try {
+      await client.makeMove(gameId, decision.move);
+      logger.info(`game ${gameId}: submitted move ${decision.move} (${decision.source}, ${decision.latencyMs}ms)`);
+    } catch (err) {
+      if (/game already over/i.test(err.message)) {
+        logger.warn(`game ${gameId}: move rejected (game already over); exiting game loop`);
+        break;
+      }
+      throw err;
+    }
   }
 
   return outcome;
