@@ -11,6 +11,7 @@ const {
   parseOptionalNumber,
   rankBotsByRating,
   computeChallengeCooldownMs,
+  isOwnChallengeEvent,
   selectClosestBot,
 } = require("../../src/bot/main");
 
@@ -187,4 +188,46 @@ test("maybeStartOutboundChallenge retries with next opponent after rate-limit fa
   });
 
   assert.ok(state.opponentCooldownUntil.get("botA") > Date.now());
+});
+
+test("isOwnChallengeEvent detects outbound challenge echo", () => {
+  const challenge = { id: "c1", challenger: { name: "raoulforkyou" } };
+  assert.equal(isOwnChallengeEvent(challenge, { username: "raoulforkyou" }), true);
+  assert.equal(isOwnChallengeEvent(challenge, { username: "other" }), false);
+});
+
+test("maybeStartOutboundChallenge does not create another challenge while pending one is active", async () => {
+  let createCalls = 0;
+  const client = {
+    async getAccount() {
+      return { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+    },
+    async getOnlineBots() {
+      return [{ username: "botA", perfs: { blitz: { rating: 1510 } } }];
+    },
+    async createChallenge() {
+      createCalls += 1;
+      return { challenge: { id: "one" } };
+    },
+  };
+  const logger = { info: () => {}, warn: () => {} };
+  const state = {
+    hasActiveGame: false,
+    targetGamesReached: false,
+    pendingOutboundChallenge: false,
+    pendingOutboundChallengeId: "already-open",
+    pendingOutboundChallengeExpiresAt: Date.now() + 60000,
+    outboundChallengeTtlMs: 45000,
+    opponentCooldownUntil: new Map(),
+    me: { username: "mybot", perfs: { blitz: { rating: 1500 } } },
+  };
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  assert.equal(createCalls, 0);
 });

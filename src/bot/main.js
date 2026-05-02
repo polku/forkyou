@@ -110,9 +110,26 @@ function computeChallengeCooldownMs(err) {
   return 5 * 60 * 1000;
 }
 
+function isOwnChallengeEvent(challenge, me) {
+  const myUsername = me?.username;
+  if (!myUsername) {
+    return false;
+  }
+  const challengerName = challenge?.challenger?.name || challenge?.challenger?.id || challenge?.challenger?.username;
+  return challengerName === myUsername;
+}
+
 async function maybeStartOutboundChallenge({ client, logger, state, challengeOptions }) {
   if (state.hasActiveGame || state.targetGamesReached || state.pendingOutboundChallenge) {
     return;
+  }
+  if (state.pendingOutboundChallengeId && Date.now() < state.pendingOutboundChallengeExpiresAt) {
+    return;
+  }
+  if (state.pendingOutboundChallengeId && Date.now() >= state.pendingOutboundChallengeExpiresAt) {
+    logger.info(`pending outbound challenge ${state.pendingOutboundChallengeId} expired; trying another opponent`);
+    state.pendingOutboundChallengeId = null;
+    state.pendingOutboundChallengeExpiresAt = 0;
   }
 
   state.pendingOutboundChallenge = true;
@@ -142,6 +159,8 @@ async function maybeStartOutboundChallenge({ client, logger, state, challengeOpt
       try {
         const challengeResult = await client.createChallenge(opponent, challengeOptions);
         const challengeId = challengeResult.challenge?.id || challengeResult.id || "unknown";
+        state.pendingOutboundChallengeId = challengeId;
+        state.pendingOutboundChallengeExpiresAt = Date.now() + state.outboundChallengeTtlMs;
         logger.info(`Challenge created: ${challengeId} -> ${opponent}`);
         return;
       } catch (err) {
@@ -184,6 +203,9 @@ async function run() {
     targetGamesStarted: 0,
     targetGamesReached: false,
     pendingOutboundChallenge: false,
+    pendingOutboundChallengeId: null,
+    pendingOutboundChallengeExpiresAt: 0,
+    outboundChallengeTtlMs: Number(process.env.ACTIVE_CHALLENGE_PENDING_TTL_MS || "45000"),
     opponentCooldownUntil: new Map(),
     me: null,
   };
@@ -219,8 +241,22 @@ async function run() {
     });
 
     for await (const event of client.streamIncomingEvents()) {
+      if (event.type === "challengeDeclined" || event.type === "challengeCanceled") {
+        const challengeId = event.challenge?.id || event.challenge?.challenge?.id;
+        if (challengeId && challengeId === state.pendingOutboundChallengeId) {
+          logger.info(`outbound challenge ${challengeId} ended without game; unlocking outbound attempts`);
+          state.pendingOutboundChallengeId = null;
+          state.pendingOutboundChallengeExpiresAt = 0;
+        }
+        continue;
+      }
+
       if (event.type === "challenge") {
         const challenge = event.challenge || {};
+        if (isOwnChallengeEvent(challenge, state.me)) {
+          logger.info(`ignoring own outbound challenge event ${challenge.id || "unknown"}`);
+          continue;
+        }
         const decision = evaluateChallenge(challenge, { hasActiveGame: state.hasActiveGame, acceptRated, maxClockSeconds });
         if (decision.action === "ignore") {
           logger.warn("ignoring malformed challenge event with missing id");
@@ -252,6 +288,8 @@ async function run() {
       }
 
       logger.info(`starting game loop for ${gameId} as ${botColor}`);
+      state.pendingOutboundChallengeId = null;
+      state.pendingOutboundChallengeExpiresAt = 0;
       state.hasActiveGame = true;
       state.targetGamesStarted += 1;
       if (state.targetGamesStarted >= activeChallengeTargetGames && !state.targetGamesReached) {
@@ -293,6 +331,7 @@ module.exports = {
   selectClosestBot,
   rankBotsByRating,
   computeChallengeCooldownMs,
+  isOwnChallengeEvent,
   maybeStartOutboundChallenge,
   run,
 };
