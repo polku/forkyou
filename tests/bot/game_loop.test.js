@@ -247,3 +247,40 @@ test("runSingleGame re-throws unexpected makeMove errors", async () => {
     "non-400 errors must propagate"
   );
 });
+
+test("runSingleGame passes non-zero think budget to decision policy when clock allows", async () => {
+  const events = [
+    { type: "gameState", moves: "", status: "started", wtime: 60000, btime: 60000, winc: 1000, binc: 1000 },
+    { type: "gameState", moves: "e2e4", status: "resign", winner: "white" },
+  ];
+  let capturedBudget = 0;
+
+  const client = {
+    async *streamGame() {
+      for (const event of events) {
+        yield event;
+      }
+    },
+    async makeMove() {
+      return true;
+    },
+  };
+
+  const decisionPolicy = {
+    async decide({ legalMoves, timeBudgetMs }) {
+      capturedBudget = timeBudgetMs;
+      return { move: legalMoves[0], latencyMs: 1, source: "baseline" };
+    },
+  };
+
+  const logger = { info: () => {}, warn: () => {} };
+  await runSingleGame({
+    client,
+    decisionPolicy,
+    logger,
+    gameId: "g6",
+    botColor: "white",
+  });
+
+  assert.ok(capturedBudget > 0, "expected positive think budget for usable clock");
+});

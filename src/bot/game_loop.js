@@ -2,6 +2,7 @@
 
 const { Chess } = require("../../scripts/bot/chess_lib");
 const { normalizeOutcome } = require("./terminal");
+const { computeMoveBudget } = require("../decision/time_manager");
 
 function inferTurnFromMoves(moves) {
   if (!moves || moves.trim() === "") {
@@ -96,6 +97,7 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
       legalMoves,
       fen,
       state,
+      timeBudgetMs: computeMoveBudget({ state, botColor, moves: state.moves }),
     });
 
     if (!legalMoves.includes(decision.move)) {
