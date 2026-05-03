@@ -28,7 +28,7 @@ CTO owns this policy; role-specific instruction files must continue to include t
 With branch + PR workflow enabled, DoD is satisfied only when:
 1. In-scope changes are committed.
 2. Commits are pushed to the remote branch.
-3. A pull request is opened from the working branch to the target base branch.
+3. A board-facing issue comment requests PR creation from the pushed branch to the target base branch.
 4. Heartbeat/update comment includes commit SHA(s), branch, and PR link.
 
-If push or PR creation is blocked by permissions/policy, the issue must be marked blocked with unblock owner and action.
+If push is blocked by permissions/policy, the issue must be marked blocked with unblock owner and action.
