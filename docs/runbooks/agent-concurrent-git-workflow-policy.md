@@ -5,7 +5,7 @@ Prevent multi-agent commit collisions and accidental staging of unrelated change
 
 ## Required Policy
 1. Assume other agents may modify the same repository at any time.
-2. Use an isolated worktree per assigned issue.
+2. Use an isolated worktree per assigned issue, created from `master` (example: `git worktree add ../wt-<issue> master`).
 3. Stage only in-scope paths after checking `git status --short`.
 4. Do not revert or delete unrelated changes blindly.
 5. Coordinate when two active issues touch the same files.
@@ -28,7 +28,7 @@ CTO owns this policy; role-specific instruction files must continue to include t
 With branch + PR workflow enabled, DoD is satisfied only when:
 1. In-scope changes are committed.
 2. Commits are pushed to the remote branch.
-3. A board-facing issue comment requests PR creation from the pushed branch to the target base branch.
-4. Heartbeat/update comment includes commit SHA(s), branch, and an explicit request that the board create the PR.
+3. A board-facing issue comment requests PR creation from the pushed branch to `master`.
+4. Heartbeat/update comment includes commit SHA(s), branch, and an explicit request that the board create the PR to `master`.
 
 If push is blocked by permissions/policy, the issue must be marked blocked with unblock owner and action.

@@ -10,7 +10,8 @@ Workspace: /home/jmaurice/.paperclip/instances/default/projects/efc63cdc-90d2-41
 - Canonical remote (`origin`): `git@github.com:polku/forkyou.git`
 
 ## Branch / commit / push expectations
-- Create feature branches from `master` using `feature/<issue-or-scope>` naming.
+- Create a dedicated worktree per issue from `master` before any edits: `git worktree add ../wt-<issue> master`.
+- Create feature branches from `master` inside that worktree using `feature/<issue-or-scope>` naming.
 - Keep commits scoped and reference issue identifiers in commit messages (example: `feat(bot): add opening book loader (FOR-123)`).
 - Do not push directly from dirty worktrees with unrelated untracked files; first stage only intended paths.
 - Push workflow:
