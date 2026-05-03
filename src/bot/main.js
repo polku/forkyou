@@ -159,6 +159,9 @@ async function maybeStartOutboundChallenge({ client, logger, state, challengeOpt
 
     const now = Date.now();
     const opponents = rankedOpponents.filter((username) => {
+      if (state.sessionChallengedOpponents.has(username)) {
+        return false;
+      }
       const until = state.opponentCooldownUntil.get(username) || 0;
       return until <= now;
     });
@@ -173,6 +176,7 @@ async function maybeStartOutboundChallenge({ client, logger, state, challengeOpt
       try {
         const challengeResult = await client.createChallenge(opponent, challengeOptions);
         const challengeId = challengeResult.challenge?.id || challengeResult.id || "unknown";
+        state.sessionChallengedOpponents.add(opponent);
         state.pendingOutboundChallengeId = challengeId;
         state.pendingOutboundChallengeExpiresAt = Date.now() + state.outboundChallengeTtlMs;
         state.pendingOutboundChallengeOpponent = opponent;
@@ -198,7 +202,7 @@ async function run() {
   const moveLatencyBudgetMs = Number(process.env.BOT_MOVE_BUDGET_MS || "200");
   const acceptRated = parseBoolean(process.env.ACCEPT_RATED, false);
   const maxClockSeconds = parseOptionalNumber(process.env.MAX_CLOCK_SECONDS);
-  const activeChallengeTargetGames = Number(process.env.ACTIVE_CHALLENGE_TARGET_GAMES || "2");
+  const activeChallengeTargetGames = Number(process.env.ACTIVE_CHALLENGE_TARGET_GAMES || "5");
   const activeChallengeClockSeconds = Number(process.env.ACTIVE_CHALLENGE_CLOCK_SECONDS || "60");
   const activeChallengeClockIncrement = Number(process.env.ACTIVE_CHALLENGE_CLOCK_INCREMENT || "0");
   const outboundTickMs = Number(process.env.ACTIVE_CHALLENGE_TICK_MS || "5000");
@@ -251,6 +255,7 @@ async function run() {
     outboundChallengeTtlMs: Number(process.env.ACTIVE_CHALLENGE_PENDING_TTL_MS || "45000"),
     noGameOpponentCooldownMs: Number(process.env.ACTIVE_CHALLENGE_NO_GAME_COOLDOWN_MS || "180000"),
     opponentCooldownUntil: new Map(),
+    sessionChallengedOpponents: new Set(),
     me: null,
   };
 
