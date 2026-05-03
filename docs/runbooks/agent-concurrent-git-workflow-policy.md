@@ -29,6 +29,6 @@ With branch + PR workflow enabled, DoD is satisfied only when:
 1. In-scope changes are committed.
 2. Commits are pushed to the remote branch.
 3. A board-facing issue comment requests PR creation from the pushed branch to the target base branch.
-4. Heartbeat/update comment includes commit SHA(s), branch, and PR link.
+4. Heartbeat/update comment includes commit SHA(s), branch, and an explicit request that the board create the PR.
 
 If push is blocked by permissions/policy, the issue must be marked blocked with unblock owner and action.
