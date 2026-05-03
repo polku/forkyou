@@ -6,12 +6,13 @@ Prevent multi-agent commit collisions and accidental staging of unrelated change
 ## Required Policy
 1. Assume other agents may modify the same repository at any time.
 2. Use an isolated worktree per assigned issue, created from `master` (example: `git worktree add ../wt-<issue> master`).
-3. Stage only in-scope paths after checking `git status --short`.
-4. Do not revert or delete unrelated changes blindly.
-5. Coordinate when two active issues touch the same files.
-6. Resolve only issue-relevant conflict hunks and rerun minimal verification.
-7. Do not use destructive cleanup commands (`git reset --hard`, `git checkout -- .`) unless explicitly instructed.
-8. Push immediately after successful scoped commits and include branch/SHA in heartbeat updates.
+3. Before creating the issue branch, sync `master` from remote: `git fetch origin --prune` then `git checkout master && git pull --ff-only origin master`.
+4. Stage only in-scope paths after checking `git status --short`.
+5. Do not revert or delete unrelated changes blindly.
+6. Coordinate when two active issues touch the same files.
+7. Resolve only issue-relevant conflict hunks and rerun minimal verification.
+8. Before push, fetch and rebase on latest `origin/master` (`git fetch origin --prune && git rebase origin/master`), resolving only in-scope conflicts.
+9. Push immediately after successful scoped commits and include branch/SHA in heartbeat updates.
 
 ## Runtime Rollout Scope
 This policy has been inserted into each active runtime agent instruction file at:
