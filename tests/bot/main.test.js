@@ -121,6 +121,7 @@ test("maybeStartOutboundChallenge creates challenge when eligible", async () => 
     outboundChallengeTtlMs: 45000,
     noGameOpponentCooldownMs: 180000,
     opponentCooldownUntil: new Map(),
+    sessionChallengedOpponents: new Set(),
     me: null,
   };
 
@@ -188,6 +189,7 @@ test("maybeStartOutboundChallenge retries with next opponent after rate-limit fa
     outboundChallengeTtlMs: 45000,
     noGameOpponentCooldownMs: 180000,
     opponentCooldownUntil: new Map(),
+    sessionChallengedOpponents: new Set(),
     me: null,
   };
 
@@ -232,6 +234,7 @@ test("maybeStartOutboundChallenge does not create another challenge while pendin
     outboundChallengeTtlMs: 45000,
     noGameOpponentCooldownMs: 180000,
     opponentCooldownUntil: new Map(),
+    sessionChallengedOpponents: new Set(),
     me: { username: "mybot", perfs: { blitz: { rating: 1500 } } },
   };
 
@@ -278,6 +281,7 @@ test("maybeStartOutboundChallenge cools down opponent when pending challenge exp
     outboundChallengeTtlMs: 45000,
     noGameOpponentCooldownMs: 180000,
     opponentCooldownUntil: new Map(),
+    sessionChallengedOpponents: new Set(),
     me: { username: "mybot", perfs: { blitz: { rating: 1500 } } },
   };
 
@@ -290,4 +294,55 @@ test("maybeStartOutboundChallenge cools down opponent when pending challenge exp
 
   assert.ok(state.opponentCooldownUntil.get("botA") > Date.now());
   assert.equal(createCalls, 1);
+});
+
+test("maybeStartOutboundChallenge does not re-challenge same opponent in one session", async () => {
+  let createCalls = 0;
+  const client = {
+    async getAccount() {
+      return { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+    },
+    async getOnlineBots() {
+      return [{ username: "botA", perfs: { blitz: { rating: 1510 } } }];
+    },
+    async createChallenge() {
+      createCalls += 1;
+      return { challenge: { id: `c${createCalls}` } };
+    },
+  };
+  const logger = { info: () => {}, warn: () => {} };
+  const state = {
+    hasActiveGame: false,
+    targetGamesReached: false,
+    pendingOutboundChallenge: false,
+    pendingOutboundChallengeId: null,
+    pendingOutboundChallengeExpiresAt: 0,
+    pendingOutboundChallengeOpponent: null,
+    outboundChallengeTtlMs: 45000,
+    noGameOpponentCooldownMs: 180000,
+    opponentCooldownUntil: new Map(),
+    sessionChallengedOpponents: new Set(),
+    me: null,
+  };
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  state.pendingOutboundChallengeId = null;
+  state.pendingOutboundChallengeExpiresAt = 0;
+  state.pendingOutboundChallengeOpponent = null;
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  assert.equal(createCalls, 1);
+  assert.equal(state.sessionChallengedOpponents.has("botA"), true);
 });
