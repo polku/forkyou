@@ -10,12 +10,15 @@ Workspace: /home/jmaurice/.paperclip/instances/default/projects/efc63cdc-90d2-41
 - Canonical remote (`origin`): `git@github.com:polku/forkyou.git`
 
 ## Branch / commit / push expectations
-- Create feature branches from `master` using `feature/<issue-or-scope>` naming.
+- Create a dedicated worktree per issue from `master` before any edits: `git worktree add ../wt-<issue> master`.
+- Before branching, make sure local `master` is current: `git fetch origin --prune` then `git checkout master && git pull --ff-only origin master`.
+- Create feature branches from `master` inside that worktree using `feature/<issue-or-scope>` naming.
 - Keep commits scoped and reference issue identifiers in commit messages (example: `feat(bot): add opening book loader (FOR-123)`).
 - Do not push directly from dirty worktrees with unrelated untracked files; first stage only intended paths.
 - Push workflow:
   1. `git checkout -b feature/<scope>`
-  2. `git push -u origin feature/<scope>`
+  2. `git fetch origin --prune && git rebase origin/master`
+  3. `git push -u origin feature/<scope>`
 
 ## Verification snapshot
 - `git rev-parse --is-inside-work-tree`
