@@ -20,7 +20,7 @@ This runbook covers the operational lifecycle of the chess bot's live play stack
 | `LICHESS_BASE_URL` | `https://lichess.org` | Base URL for Lichess API |
 | `ACCEPT_RATED` | `false` | Whether to accept rated games |
 | `MAX_CLOCK_SECONDS` | *(none)* | Decline challenges with clock limit above this |
-| `ACTIVE_CHALLENGE_TARGET_GAMES` | `2` | Outbound challenge quota before switching to passive mode |
+| `ACTIVE_CHALLENGE_TARGET_GAMES` | `5` | Outbound challenge quota before switching to passive mode |
 | `ACTIVE_CHALLENGE_CLOCK_SECONDS` | `60` | Clock limit for outbound challenges |
 | `ACTIVE_CHALLENGE_CLOCK_INCREMENT` | `0` | Increment for outbound challenges |
 | `ACTIVE_CHALLENGE_TICK_MS` | `5000` | Interval between outbound challenge attempts |
@@ -47,7 +47,7 @@ node src/bot/main.js
 **Expected startup log lines:**
 ```
 [info] provider=uci fallback=first_legal failure-threshold=3 recovery-delay=0ms
-[info] bot runtime starting; active challenge target=2 clock=60+0
+[info] bot runtime starting; active challenge target=5 clock=60+0
 [info] Connected as BOT: <username>
 ```
 
