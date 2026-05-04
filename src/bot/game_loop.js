@@ -55,6 +55,10 @@ function computeFenFromHistory(movesStr) {
   return chess.fen();
 }
 
+function hasOpponentDrawOffer(state, botColor) {
+  return botColor === "white" ? state.bdraw === true : state.wdraw === true;
+}
+
 async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor, moveLatencyBudgetMs = 200 }) {
   let outcome = { terminal: false, status: "started", result: "ongoing" };
 
@@ -73,6 +77,16 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
     if (outcome.terminal) {
       logger.info(`game ${gameId} finished: ${outcome.result} (${outcome.status})`);
       break;
+    }
+
+    if (hasOpponentDrawOffer(state, botColor)) {
+      try {
+        await client.acceptDraw(gameId);
+        logger.info(`game ${gameId}: accepted opponent draw offer`);
+      } catch (err) {
+        logger.warn(`game ${gameId}: draw accept failed: ${err.message}`);
+      }
+      continue;
     }
 
     if (turn !== botColor) {
@@ -132,5 +146,6 @@ module.exports = {
   extractLegalMovesFromEvent,
   computeLegalMovesFromHistory,
   computeFenFromHistory,
+  hasOpponentDrawOffer,
   runSingleGame,
 };

@@ -338,3 +338,55 @@ test("runSingleGame warns when latency significantly overruns the computed budge
     "overrun warning expected when latency exceeds budget by 500ms (> 200ms tolerance)"
   );
 });
+
+test("runSingleGame accepts opponent draw offer and skips move submission", async () => {
+  const accepted = [];
+  const moves = [];
+  const warnings = [];
+  const events = [
+    { type: "gameState", moves: "e2e4", status: "started", bdraw: true },
+    { type: "gameState", moves: "e2e4", status: "draw" },
+  ];
+
+  const client = {
+    async *streamGame() {
+      for (const event of events) {
+        yield event;
+      }
+    },
+    async acceptDraw(gameId) {
+      accepted.push(gameId);
+      return true;
+    },
+    async makeMove(_gameId, move) {
+      moves.push(move);
+      return true;
+    },
+  };
+
+  const decisionPolicy = {
+    decide() {
+      throw new Error("policy should not run while processing draw offer");
+    },
+  };
+
+  const logger = {
+    info: () => {},
+    warn: (msg) => warnings.push(msg),
+  };
+
+  const outcome = await runSingleGame({
+    client,
+    decisionPolicy,
+    logger,
+    gameId: "g-draw",
+    botColor: "white",
+    moveLatencyBudgetMs: 200,
+  });
+
+  assert.deepEqual(accepted, ["g-draw"]);
+  assert.equal(moves.length, 0);
+  assert.equal(warnings.length, 0);
+  assert.equal(outcome.result, "draw");
+  assert.equal(outcome.terminal, true);
+});
