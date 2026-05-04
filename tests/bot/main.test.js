@@ -346,3 +346,93 @@ test("maybeStartOutboundChallenge does not re-challenge same opponent in one ses
   assert.equal(createCalls, 1);
   assert.equal(state.sessionChallengedOpponents.has("botA"), true);
 });
+
+test("maybeStartOutboundChallenge skips silently when targetGamesReached is true", async () => {
+  let createCalls = 0;
+  const client = {
+    async getAccount() {
+      return { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+    },
+    async getOnlineBots() {
+      return [{ username: "botA", perfs: { blitz: { rating: 1510 } } }];
+    },
+    async createChallenge() {
+      createCalls += 1;
+      return { challenge: { id: "c1" } };
+    },
+  };
+  const logger = { info: () => {}, warn: () => {} };
+  const state = {
+    hasActiveGame: false,
+    targetGamesReached: true,
+    pendingOutboundChallenge: false,
+    pendingOutboundChallengeId: null,
+    pendingOutboundChallengeExpiresAt: 0,
+    pendingOutboundChallengeOpponent: null,
+    outboundChallengeTtlMs: 45000,
+    noGameOpponentCooldownMs: 180000,
+    opponentCooldownUntil: new Map(),
+    sessionChallengedOpponents: new Set(),
+    me: null,
+  };
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  assert.equal(createCalls, 0);
+});
+
+test("maybeStartOutboundChallenge resumes after targetGamesReached is reset to false", async () => {
+  let createCalls = 0;
+  const client = {
+    async getAccount() {
+      return { username: "mybot", perfs: { blitz: { rating: 1500 } } };
+    },
+    async getOnlineBots() {
+      return [{ username: "botA", perfs: { blitz: { rating: 1510 } } }];
+    },
+    async createChallenge() {
+      createCalls += 1;
+      return { challenge: { id: `c${createCalls}` } };
+    },
+  };
+  const logger = { info: () => {}, warn: () => {} };
+  const state = {
+    hasActiveGame: false,
+    targetGamesReached: true,
+    pendingOutboundChallenge: false,
+    pendingOutboundChallengeId: null,
+    pendingOutboundChallengeExpiresAt: 0,
+    pendingOutboundChallengeOpponent: null,
+    outboundChallengeTtlMs: 45000,
+    noGameOpponentCooldownMs: 180000,
+    opponentCooldownUntil: new Map(),
+    sessionChallengedOpponents: new Set(),
+    me: null,
+  };
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  assert.equal(createCalls, 0);
+
+  // Simule ce que le finally du game loop fait maintenant après chaque partie
+  state.targetGamesReached = false;
+
+  await maybeStartOutboundChallenge({
+    client,
+    logger,
+    state,
+    challengeOptions: { rated: false, clockLimitSeconds: 60, clockIncrementSeconds: 0 },
+  });
+
+  assert.equal(createCalls, 1);
+});
