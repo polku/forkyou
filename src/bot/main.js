@@ -361,6 +361,8 @@ async function run() {
         logger.info(`game ${gameId} closed with outcome=${outcome.result} status=${outcome.status}`);
       } finally {
         state.hasActiveGame = false;
+        state.targetGamesReached = false;
+        state.targetGamesStarted = 0;
       }
     }
   } finally {
