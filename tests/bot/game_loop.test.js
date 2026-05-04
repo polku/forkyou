@@ -8,6 +8,9 @@ const {
   extractLegalMovesFromEvent,
   computeLegalMovesFromHistory,
   computeFenFromHistory,
+  materialScoreFromFenForBot,
+  isSignificantlyBehindOnTime,
+  shouldAcceptDrawOffer,
   runSingleGame,
 } = require("../../src/bot/game_loop");
 
@@ -44,6 +47,36 @@ test("computeFenFromHistory computes FEN and returns null for invalid history", 
   assert.equal(typeof fen, "string");
   assert.ok(fen.startsWith("rnbqkbnr/pppp1ppp"));
   assert.equal(computeFenFromHistory("badmove"), null);
+});
+
+test("draw-offer policy helpers evaluate material and time thresholds", () => {
+  const equalMaterialFen = computeFenFromHistory("e2e4 e7e5");
+  assert.equal(materialScoreFromFenForBot(equalMaterialFen, "white"), 0);
+
+  const upQueenFen = "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  assert.ok(materialScoreFromFenForBot(upQueenFen, "white") >= 300, "white should have clear material edge");
+
+  assert.equal(
+    isSignificantlyBehindOnTime({ wtime: 12000, btime: 40000 }, "white"),
+    true,
+    "white is sufficiently behind on time"
+  );
+  assert.equal(
+    isSignificantlyBehindOnTime({ wtime: 30000, btime: 40000 }, "white"),
+    false,
+    "small deficit should not be treated as significant"
+  );
+
+  assert.equal(
+    shouldAcceptDrawOffer({ state: { moves: "e2e4 e7e5", bdraw: true, wtime: 12000, btime: 40000 }, botColor: "white" }),
+    true,
+    "accept with no clear advantage and large time deficit"
+  );
+  assert.equal(
+    shouldAcceptDrawOffer({ state: { moves: "", bdraw: true, wtime: 12000, btime: 40000, fen: upQueenFen }, botColor: "white" }),
+    false,
+    "reject when we have clear advantage"
+  );
 });
 
 test("runSingleGame submits a move and stops on terminal state", async () => {
@@ -339,12 +372,12 @@ test("runSingleGame warns when latency significantly overruns the computed budge
   );
 });
 
-test("runSingleGame accepts opponent draw offer and skips move submission", async () => {
+test("runSingleGame accepts opponent draw offer only when policy conditions are met", async () => {
   const accepted = [];
   const moves = [];
   const warnings = [];
   const events = [
-    { type: "gameState", moves: "e2e4", status: "started", bdraw: true },
+    { type: "gameState", moves: "e2e4", status: "started", bdraw: true, wtime: 12000, btime: 40000 },
     { type: "gameState", moves: "e2e4", status: "draw" },
   ];
 
@@ -388,5 +421,51 @@ test("runSingleGame accepts opponent draw offer and skips move submission", asyn
   assert.equal(moves.length, 0);
   assert.equal(warnings.length, 0);
   assert.equal(outcome.result, "draw");
+  assert.equal(outcome.terminal, true);
+});
+
+test("runSingleGame keeps playing when draw offer is present but conditions are not met", async () => {
+  const accepted = [];
+  const moves = [];
+  const events = [
+    { type: "gameState", moves: "e2e4 e7e5", status: "started", bdraw: true, wtime: 30000, btime: 40000 },
+    { type: "gameState", moves: "e2e4 e7e5 g1f3", status: "mate", winner: "white" },
+  ];
+
+  const client = {
+    async *streamGame() {
+      for (const event of events) {
+        yield event;
+      }
+    },
+    async acceptDraw(gameId) {
+      accepted.push(gameId);
+      return true;
+    },
+    async makeMove(_gameId, move) {
+      moves.push(move);
+      return true;
+    },
+  };
+
+  const decisionPolicy = {
+    async decide({ legalMoves }) {
+      return { move: legalMoves[0], latencyMs: 2, source: "baseline" };
+    },
+  };
+
+  const logger = { info: () => {}, warn: () => {} };
+
+  const outcome = await runSingleGame({
+    client,
+    decisionPolicy,
+    logger,
+    gameId: "g-draw-keep",
+    botColor: "white",
+    moveLatencyBudgetMs: 200,
+  });
+
+  assert.deepEqual(accepted, []);
+  assert.ok(moves.length >= 1, "bot should continue playing when draw is not accepted");
   assert.equal(outcome.terminal, true);
 });
