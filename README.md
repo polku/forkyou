@@ -11,6 +11,9 @@ Chess bot created entirely through [Paperclip](https://paperclip.ing/) as contro
 ## Prerequisites
 - Node.js `>=22`
 - npm `>=10`
+- Stockfish (required by default `DECISION_PROVIDER=uci` runtime)
+  - Verify install: `which stockfish && stockfish --version`
+  - Debian/Ubuntu install example: `sudo apt install stockfish`
 
 ## Quick Start
 ```bash
@@ -21,6 +24,14 @@ Set environment variables:
 
 ```bash
 export LICHESS_BOT_TOKEN=lip_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Runtime defaults to UCI mode (Stockfish)
+# export DECISION_PROVIDER=uci
+# export UCI_ENGINE_PATH=stockfish
+# export UCI_MOVE_TIME_MS=100
+# Optional fallback behavior:
+# export FALLBACK_MODE=random   # or first_legal
+# export ENGINE_FAILURE_THRESHOLD=3
+# export ENGINE_RECOVERY_DELAY_MS=0
 # Optional:
 # export LICHESS_BASE_URL=https://lichess.org
 # export BOT_MOVE_BUDGET_MS=200
@@ -56,6 +67,12 @@ npm run test:conformance
 - `LICHESS_BOT_TOKEN` (required): Lichess BOT API token.
 - `LICHESS_BASE_URL` (optional): defaults to `https://lichess.org`.
 - `BOT_MOVE_BUDGET_MS` (optional): move-decision latency budget in milliseconds. Default `200`.
+- `DECISION_PROVIDER` (optional): move policy provider. Default `uci`. Set `random` or `baseline` to run without Stockfish.
+- `UCI_ENGINE_PATH` (optional): path to UCI engine binary. Default `stockfish`.
+- `UCI_MOVE_TIME_MS` (optional): engine `go movetime` budget in ms. Default `100`.
+- `FALLBACK_MODE` (optional): fallback move selector when UCI fails. `random` (default) or `first_legal`.
+- `ENGINE_FAILURE_THRESHOLD` (optional): consecutive UCI fallbacks before circuit opens. Default `3`.
+- `ENGINE_RECOVERY_DELAY_MS` (optional): delay before recovery attempt after open circuit. Default `0`.
 - `ENGINE_URL` (optional): endpoint used by conformance tests when validating engine integration.
 
 ## Documentation Index
