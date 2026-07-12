@@ -82,6 +82,23 @@ test("LichessClient declines challenge with encoded reason", async () => {
   assert.equal(calls[0].options.body, "reason=timeControl");
 });
 
+test("LichessClient accepts draw offer for game", async () => {
+  const calls = [];
+  const client = new LichessClient({
+    token: "tkn",
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return responseOk("");
+    },
+  });
+
+  await client.acceptDraw("g123");
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/api\/bot\/game\/g123\/draw\/yes$/);
+  assert.equal(calls[0].options.method, "POST");
+});
+
 test("LichessClient creates challenge with clock payload", async () => {
   const calls = [];
   const client = new LichessClient({

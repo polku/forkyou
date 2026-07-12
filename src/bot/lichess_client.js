@@ -58,6 +58,22 @@ class LichessClient {
     return true;
   }
 
+  async acceptDraw(gameId) {
+    const res = await this.fetchImpl(`${this.baseUrl}/api/bot/game/${gameId}/draw/yes`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`draw accept failed (${res.status}): ${body}`);
+    }
+
+    return true;
+  }
+
   async getAccount() {
     const res = await this.fetchImpl(`${this.baseUrl}/api/account`, {
       method: "GET",

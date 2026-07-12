@@ -4,6 +4,18 @@ const { Chess } = require("../../scripts/bot/chess_lib");
 const { normalizeOutcome } = require("./terminal");
 const { computeMoveBudget } = require("../decision/time_manager");
 
+const PIECE_VALUES = {
+  p: 100,
+  n: 320,
+  b: 330,
+  r: 500,
+  q: 900,
+};
+
+const CLEAR_ADVANTAGE_CP = 300;
+const SIGNIFICANT_TIME_DEFICIT_MS = 15000;
+const SIGNIFICANT_TIME_RATIO = 0.6;
+
 function inferTurnFromMoves(moves) {
   if (!moves || moves.trim() === "") {
     return "white";
@@ -55,6 +67,58 @@ function computeFenFromHistory(movesStr) {
   return chess.fen();
 }
 
+function hasOpponentDrawOffer(state, botColor) {
+  return botColor === "white" ? state.bdraw === true : state.wdraw === true;
+}
+
+function materialScoreFromFenForBot(fen, botColor) {
+  if (!fen || typeof fen !== "string") {
+    return 0;
+  }
+
+  const placement = fen.split(" ")[0] || "";
+  let whiteScore = 0;
+  let blackScore = 0;
+
+  for (const ch of placement) {
+    const lower = ch.toLowerCase();
+    const value = PIECE_VALUES[lower] || 0;
+    if (!value) {
+      continue;
+    }
+    if (ch === lower) {
+      blackScore += value;
+    } else {
+      whiteScore += value;
+    }
+  }
+
+  return botColor === "white" ? whiteScore - blackScore : blackScore - whiteScore;
+}
+
+function isSignificantlyBehindOnTime(state, botColor) {
+  const ownTimeMs = botColor === "white" ? state.wtime : state.btime;
+  const oppTimeMs = botColor === "white" ? state.btime : state.wtime;
+  if (!Number.isFinite(ownTimeMs) || !Number.isFinite(oppTimeMs) || oppTimeMs <= 0) {
+    return false;
+  }
+  const deficit = oppTimeMs - ownTimeMs;
+  const ratio = ownTimeMs / oppTimeMs;
+  return deficit >= SIGNIFICANT_TIME_DEFICIT_MS && ratio <= SIGNIFICANT_TIME_RATIO;
+}
+
+function shouldAcceptDrawOffer({ state, botColor }) {
+  if (!hasOpponentDrawOffer(state, botColor)) {
+    return false;
+  }
+
+  const fen = typeof state.fen === "string" && state.fen.trim() ? state.fen : computeFenFromHistory(state.moves);
+  const materialScore = materialScoreFromFenForBot(fen, botColor);
+  const hasClearAdvantage = materialScore >= CLEAR_ADVANTAGE_CP;
+  const significantlyBehindOnTime = isSignificantlyBehindOnTime(state, botColor);
+  return !hasClearAdvantage && significantlyBehindOnTime;
+}
+
 async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor, moveLatencyBudgetMs = 200 }) {
   let outcome = { terminal: false, status: "started", result: "ongoing" };
 
@@ -73,6 +137,19 @@ async function runSingleGame({ client, decisionPolicy, logger, gameId, botColor,
     if (outcome.terminal) {
       logger.info(`game ${gameId} finished: ${outcome.result} (${outcome.status})`);
       break;
+    }
+
+    if (hasOpponentDrawOffer(state, botColor)) {
+      if (shouldAcceptDrawOffer({ state, botColor })) {
+        try {
+          await client.acceptDraw(gameId);
+          logger.info(`game ${gameId}: accepted opponent draw offer`);
+        } catch (err) {
+          logger.warn(`game ${gameId}: draw accept failed: ${err.message}`);
+        }
+        continue;
+      }
+      logger.info(`game ${gameId}: draw offer declined by policy; continuing play`);
     }
 
     if (turn !== botColor) {
@@ -132,5 +209,9 @@ module.exports = {
   extractLegalMovesFromEvent,
   computeLegalMovesFromHistory,
   computeFenFromHistory,
+  hasOpponentDrawOffer,
+  materialScoreFromFenForBot,
+  isSignificantlyBehindOnTime,
+  shouldAcceptDrawOffer,
   runSingleGame,
 };
